@@ -9,11 +9,16 @@ const fs = require('node:fs');
 const os = require('node:os');
 const { execFile } = require('node:child_process');
 
-const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.heic', '.heif', '.tif', '.tiff', '.avif']);
+const pkg = require('./package.json');
+
+// Single source of truth: the file associations declared for packaged builds.
+const IMAGE_EXT = new Set(pkg.build.fileAssociations.flatMap((a) => a.ext).map((e) => `.${e}`));
 const NATIVE_DECODE = new Set(['.heic', '.heif', '.tif', '.tiff']); // Chromium can't decode these, macOS can
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.bmp': 'image/bmp', '.avif': 'image/avif' };
 const SHORTCUTS = { area: 'Alt+Shift+4', window: 'Alt+Shift+5', screen: 'Alt+Shift+3' };
 const IS_MAC = process.platform === 'darwin';
+const IS_LINUX = process.platform === 'linux';
+const IS_WIN = process.platform === 'win32';
 const PRELOAD = path.join(__dirname, 'preload.js');
 const R = (f) => path.join(__dirname, 'renderer', f);
 
@@ -25,6 +30,8 @@ const overlays = [];
 
 const isImage = (p) => typeof p === 'string' && IMAGE_EXT.has(path.extname(p).toLowerCase());
 const captureDir = () => path.join(app.getPath('pictures'), 'OneShot');
+const openCaptureFolder = () => { fs.mkdirSync(captureDir(), { recursive: true }); shell.openPath(captureDir()); };
+const IMAGE_FILTERS = [{ name: 'Images', extensions: [...IMAGE_EXT].map((e) => e.slice(1)) }];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ── Settings (tiny JSON file in userData) ────────────────────────────────────
@@ -70,7 +77,6 @@ app.whenReady().then(() => {
   const files = [...pending, ...argvFiles];
   if (files.length) files.forEach((f) => openEditor(f));
   else if (process.env.ONESHOT_DEBUG_OVERLAY && !app.isPackaged) showOverlay(process.env.ONESHOT_DEBUG_OVERLAY);
-  else if (process.env.ONESHOT_HEADLESS) { /* tests */ }
   else if (!settings.onboarded) openOnboarding();
   else if (settings.showBarOnLaunch) openLauncher();
   // otherwise start silently: OneShot lives in the menu bar / tray.
@@ -96,18 +102,29 @@ function trackDock(win) {
   win.on('closed', () => setImmediate(syncDock));
 }
 
+// Inset traffic lights + vibrancy on macOS; a normal native frame elsewhere
+// (hiddenInset would remove the window controls on Windows/Linux).
+const chrome = (inset) => (IS_MAC
+  ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: inset, y: inset }, vibrancy: 'under-window', visualEffectState: 'active', backgroundColor: '#00000000' }
+  : { backgroundColor: '#f4f4f6' });
+
+// Title-bar proxy icon (macOS) + recent documents (macOS/Windows).
+function noteFile(win, file) {
+  if (IS_MAC) win.setRepresentedFilename(file);
+  if (!IS_LINUX) app.addRecentDocument(file);
+}
+
 function openEditor(file, { mode = 'view' } = {}) {
   if (!file) return openLauncher(); // never show an empty editor
   const win = new BrowserWindow({
     width: 1040, height: 720, minWidth: 600, minHeight: 420, show: false,
-    titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 18 },
-    vibrancy: 'under-window', visualEffectState: 'active', backgroundColor: '#00000000',
+    ...chrome(18),
     webPreferences: { preload: PRELOAD },
   });
   win.oneshotKind = 'editor';
-  win.loadFile(R('editor.html'), { query: { file: file || '', mode } });
+  win.loadFile(R('editor.html'), { query: { file, mode } });
   win.once('ready-to-show', () => win.show());
-  win.setRepresentedFilename(file); app.addRecentDocument(file);
+  noteFile(win, file);
   trackDock(win);
   devHooks(win);
   return win;
@@ -122,8 +139,7 @@ function openOnboarding(step) {
   }
   onboarding = new BrowserWindow({
     width: 460, height: 640, resizable: false, maximizable: false, fullscreenable: false, show: false,
-    titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 16 },
-    vibrancy: 'under-window', visualEffectState: 'active', backgroundColor: IS_MAC ? '#00000000' : '#f4f4f6',
+    ...chrome(16),
     title: 'Welcome to OneShot',
     webPreferences: { preload: PRELOAD },
   });
@@ -173,7 +189,7 @@ function showOverlay(file) {
   });
   win.oneshotKind = 'overlay';
   win.setAlwaysOnTop(true, 'screen-saver');
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  if (!IS_WIN) win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.loadFile(R('overlay.html'), { query: { file } });
   win.once('ready-to-show', () => win.showInactive());
   overlays.push(win);
@@ -196,7 +212,7 @@ function openPin(file) {
   win.oneshotKind = 'pin';
   win.setAspectRatio(w / h);
   win.setAlwaysOnTop(true, 'floating');
-  win.setVisibleOnAllWorkspaces(true);
+  if (!IS_WIN) win.setVisibleOnAllWorkspaces(true);
   win.loadFile(R('pin.html'), { query: { file } });
   win.once('ready-to-show', () => win.show());
 }
@@ -262,21 +278,28 @@ function createTray() {
   if (!IS_MAC) tray.on('click', openLauncher); // Windows: left click = capture bar, right click = menu
   updateTrayMenu();
 }
+// Shared by the tray menu and the File menu.
+const captureItems = () => [
+  { label: 'Capture Area', accelerator: SHORTCUTS.area, click: () => capture('area') },
+  { label: 'Capture Window', accelerator: SHORTCUTS.window, click: () => capture('window') },
+  { label: 'Capture Screen', accelerator: SHORTCUTS.screen, click: () => capture('screen') },
+];
+
 function updateTrayMenu() {
   if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Capture Area', accelerator: SHORTCUTS.area, click: () => capture('area') },
-    { label: 'Capture Window', accelerator: SHORTCUTS.window, click: () => capture('window') },
-    { label: 'Capture Screen', accelerator: SHORTCUTS.screen, click: () => capture('screen') },
+    ...captureItems(),
     { type: 'separator' },
     { label: 'Show Capture Bar', click: openLauncher },
     { label: 'Open Image…', click: openDialog },
-    { label: 'Open Captures Folder', click: () => { fs.mkdirSync(captureDir(), { recursive: true }); shell.openPath(captureDir()); } },
+    { label: 'Open Captures Folder', click: openCaptureFolder },
     { type: 'separator' },
-    { label: 'Open at Login', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin, click: (i) => { app.setLoginItemSettings({ openAtLogin: i.checked }); } },
+    // Login items aren't supported by Electron on Linux.
+    ...(IS_LINUX ? [] : [{ label: 'Open at Login', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin, click: (i) => { app.setLoginItemSettings({ openAtLogin: i.checked }); } }]),
     { label: 'Show Capture Bar at Launch', type: 'checkbox', checked: settings.showBarOnLaunch, click: (i) => saveSettings({ showBarOnLaunch: i.checked }) },
     { label: 'Welcome & Permissions…', click: () => openOnboarding(0) },
     { type: 'separator' },
+    { label: `OneShot ${app.getVersion()}`, enabled: false },
     { label: 'Quit OneShot', role: 'quit' },
   ]));
 }
@@ -286,18 +309,17 @@ function updateTrayMenu() {
 function buildMenu() {
   const send = (cmd) => BrowserWindow.getFocusedWindow()?.webContents.send('menu', cmd);
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { role: 'appMenu' },
+    ...(IS_MAC ? [{ role: 'appMenu' }] : []),
     {
       label: 'File', submenu: [
         { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: openDialog },
-        { role: 'recentDocuments', submenu: [{ role: 'clearRecentDocuments' }] },
+        ...(IS_MAC ? [{ role: 'recentDocuments', submenu: [{ role: 'clearRecentDocuments' }] }] : []),
         { type: 'separator' },
-        { label: 'Capture Area', accelerator: SHORTCUTS.area, click: () => capture('area') },
-        { label: 'Capture Window', accelerator: SHORTCUTS.window, click: () => capture('window') },
-        { label: 'Capture Screen', accelerator: SHORTCUTS.screen, click: () => capture('screen') },
+        ...captureItems(),
         { type: 'separator' },
         { label: 'Save Copy…', accelerator: 'CmdOrCtrl+S', click: () => send('save') },
         { role: 'close' },
+        ...(IS_MAC ? [] : [{ type: 'separator' }, { label: 'Quit OneShot', role: 'quit' }]),
       ],
     },
     {
@@ -326,7 +348,7 @@ function buildMenu() {
 async function openDialog() {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     properties: ['openFile', 'multiSelections'],
-    filters: [{ name: 'Images', extensions: [...IMAGE_EXT].map((e) => e.slice(1)) }],
+    filters: IMAGE_FILTERS,
   });
   if (canceled) return 0;
   filePaths.forEach((f) => openEditor(f));
@@ -336,7 +358,7 @@ async function openDialog() {
 // ── IPC: onboarding ──────────────────────────────────────────────────────────
 ipcMain.handle('onboarding:state', () => ({
   platform: process.platform, packaged: app.isPackaged, screen: screenAccess(), step: settings.onboardingStep,
-  openAtLogin: app.getLoginItemSettings().openAtLogin, showBarOnLaunch: settings.showBarOnLaunch, shortcuts: SHORTCUTS,
+  openAtLogin: !IS_LINUX && app.getLoginItemSettings().openAtLogin, showBarOnLaunch: settings.showBarOnLaunch, shortcuts: SHORTCUTS,
 }));
 ipcMain.handle('onboarding:request-screen', async () => {
   if (!IS_MAC) return 'granted';
@@ -385,10 +407,11 @@ ipcMain.handle('image:siblings', async (_e, p) => {
 ipcMain.handle('clipboard:image', (_e, buf) => { clipboard.writeImage(nativeImage.createFromBuffer(Buffer.from(buf))); });
 ipcMain.handle('clipboard:file', (_e, p) => { clipboard.writeImage(nativeImage.createFromPath(p)); });
 
-ipcMain.handle('file:save-as', async (e, buf, suggested) => {
+// Suggests `name` next to the original file.
+ipcMain.handle('file:save-as', async (e, buf, name, src) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
-    defaultPath: suggested,
+    defaultPath: src ? path.join(path.dirname(src), name) : name,
     filters: [{ name: 'PNG', extensions: ['png'] }, { name: 'JPEG', extensions: ['jpg', 'jpeg'] }],
   });
   if (canceled || !filePath) return null;
@@ -407,14 +430,6 @@ ipcMain.handle('file:save-copy', async (e, src) => {
   return filePath;
 });
 
-ipcMain.handle('file:open-dialog', async (e) => {
-  const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), {
-    properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: [...IMAGE_EXT].map((x) => x.slice(1)) }],
-  });
-  return canceled ? null : filePaths[0];
-});
-
 ipcMain.on('window:fit', (e, w, h) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   if (!win) return;
@@ -423,23 +438,13 @@ ipcMain.on('window:fit', (e, w, h) => {
   const H = Math.round(clamp(h + 52 + 64, 440, d.height * 0.88));
   win.setBounds({ x: Math.round(d.x + (d.width - W) / 2), y: Math.round(d.y + (d.height - H) / 2), width: W, height: H });
 });
-ipcMain.on('window:file', (e, p) => { BrowserWindow.fromWebContents(e.sender)?.setRepresentedFilename(p); app.addRecentDocument(p); });
+ipcMain.on('window:file', (e, p) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) noteFile(w, p); });
 ipcMain.on('window:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
 
 ipcMain.on('capture', (_e, kind) => capture(kind));
 ipcMain.handle('launcher:open', async () => { if (await openDialog()) closeLauncher(); });
-ipcMain.on('open-folder', () => { fs.mkdirSync(captureDir(), { recursive: true }); shell.openPath(captureDir()); });
+ipcMain.on('open-folder', openCaptureFolder);
 ipcMain.on('open-path', (_e, p) => { if (isImage(p)) { openEditor(p); closeLauncher(); } });
-ipcMain.on('window:min-width', (e, minW) => {
-  const win = BrowserWindow.fromWebContents(e.sender);
-  if (!win) return;
-  const b = win.getBounds();
-  if (b.width >= minW) return;
-  const d = screen.getDisplayMatching(b).workArea;
-  const W = Math.min(minW, d.width);
-  const x = clamp(Math.round(b.x - (W - b.width) / 2), d.x, d.x + d.width - W);
-  win.setBounds({ ...b, x, width: W }, true);
-});
 ipcMain.on('edit', (e, p) => { openEditor(p, { mode: 'edit' }); const w = BrowserWindow.fromWebContents(e.sender); if (w?.oneshotKind === 'overlay') w.close(); });
 ipcMain.on('pin', (e, p) => { openPin(p); const w = BrowserWindow.fromWebContents(e.sender); if (w?.oneshotKind === 'overlay') w.close(); });
 ipcMain.on('reveal', (_e, p) => shell.showItemInFolder(p));
@@ -456,7 +461,10 @@ ipcMain.on('drag:data', (e, dataUrl, name) => {
   e.sender.startDrag({ file, icon: nativeImage.createFromPath(file).resize({ width: 96 }) });
 });
 
-// ── Dev hooks: ONESHOT_DEBUG_SHOT=/path.png [ONESHOT_DEBUG_JS="..."] ───────────
+// ── Dev hooks (see README → Development) ─────────────────────────────────────
+// ONESHOT_DEBUG_SHOT=/path.png  screenshot the first window after load
+// ONESHOT_DEBUG_JS="..."        run this in the page first
+// ONESHOT_DEBUG_QUIT=1          quit after the screenshot
 function devHooks(win) {
   if (app.isPackaged) return;
   win.webContents.on('console-message', (e) => {

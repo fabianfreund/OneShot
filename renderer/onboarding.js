@@ -1,8 +1,8 @@
-'use strict';
 // First-run welcome: 0 intro → 1 screen-recording permission → 2 shortcuts & options.
-const api = window.oneshot.onboarding;
-const $ = (s) => document.querySelector(s);
-const steps = [...document.querySelectorAll('.step')];
+import { api as bridge, $, $$ } from './lib.js';
+
+const api = bridge.onboarding;
+const steps = $$('.step');
 let st = null, step = 0, asked = false;
 
 const MAC_KEYS = { Alt: '⌥', Shift: '⇧', Cmd: '⌘', CmdOrCtrl: '⌘', Ctrl: '⌃' };
@@ -16,7 +16,7 @@ function go(n) {
   step = Math.max(0, Math.min(2, n));
   $('#track').style.transform = `translateX(${-step * (100 / 3)}%)`;
   steps.forEach((s, i) => s.classList.toggle('current', i === step));
-  document.querySelectorAll('#dots i').forEach((d, i) => d.classList.toggle('on', i === step));
+  $$('#dots i').forEach((d, i) => d.classList.toggle('on', i === step));
   api.setStep(step);
   render();
 }
@@ -43,7 +43,7 @@ function render() {
 async function init() {
   st = await api.state();
   if (st.platform !== 'darwin') document.body.classList.add('nonmac');
-  document.querySelectorAll('[data-sc]').forEach((el) => (el.innerHTML = keycaps(st.shortcuts[el.dataset.sc])));
+  $$('[data-sc]').forEach((el) => (el.innerHTML = keycaps(st.shortcuts[el.dataset.sc])));
   $('#ready-sub').textContent = st.platform === 'darwin' ? 'OneShot lives in your menu bar.' : 'OneShot lives in your system tray.';
   $('#opt-login').checked = st.openAtLogin;
   $('#opt-bar').checked = st.showBarOnLaunch;

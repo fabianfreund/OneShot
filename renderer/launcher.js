@@ -1,10 +1,10 @@
-'use strict';
 // Floating capture bar — the window you get when OneShot opens without an image.
-const api = window.oneshot;
-document.querySelectorAll('[data-capture]').forEach((b) => (b.onclick = () => api.capture(b.dataset.capture)));
-document.getElementById('open').onclick = () => api.openImages();
-document.getElementById('folder').onclick = () => api.openFolder();
-document.getElementById('close').onclick = () => api.closeWindow();
+import { api, $, $$ } from './lib.js';
+
+$$('[data-capture]').forEach((b) => (b.onclick = () => api.capture(b.dataset.capture)));
+$('#open').onclick = () => api.openImages();
+$('#folder').onclick = () => api.openFolder();
+$('#close').onclick = () => api.closeWindow();
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') api.closeWindow(); });
 
 // Drop an image on the bar to open it.

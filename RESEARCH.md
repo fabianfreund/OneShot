@@ -21,7 +21,7 @@ Its real "moat" is **taste in the defaults** plus **speed of the overlay flow**,
 The same capture → overlay → annotate loop, plus one thing CleanShot doesn't do: **be the default image viewer.**
 
 - Double-click any PNG/JPEG/HEIC → OneShot opens it *as a viewer*: borderless, chrome fades away, ← → flip through the folder.
-- Press **E** (or double-click) → the "hidden menu" slides in: tools on top, inspector on the right.
+- Press **E** (or double-click) → the "hidden menu" slides in: one floating dock at the bottom with the tools, and popovers for color/size, background and rotate/flip.
 - The editor does real photo-ish work (crop, **perspective crop**, rotate, flip) next to the screenshot-y work (arrows, numbers, backgrounds).
 
 ### Feature map

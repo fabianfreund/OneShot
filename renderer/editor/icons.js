@@ -1,0 +1,30 @@
+// Dock and toolbar icons (24×24 stroke paths).
+export const svg = (d) => `<svg viewBox="0 0 24 24">${d}</svg>`;
+
+export const ICONS = {
+  select: '<path d="M6 3.5l12.5 7.3-5.6 1.5-2.7 5.5z"/>',
+  arrow: '<path d="M5 19L18 6M9.5 5.5H18.5V14.5"/>',
+  rect: '<rect x="4" y="5.5" width="16" height="13" rx="2.5"/>',
+  ellipse: '<ellipse cx="12" cy="12" rx="8.5" ry="6.5"/>',
+  text: '<path d="M5.5 7V5h13v2M12 5v14M9 19h6"/>',
+  counter: '<circle cx="12" cy="12" r="8.5"/><path d="M10.5 9.5L12.5 8v8"/>',
+  highlight: '<path d="M4 20.5h16"/><path d="M8 16.5l-1-3 8.5-8.5 4 4-8.5 8.5z"/>',
+  blur: '<path d="M4 4h4.5v4.5H4zM15.5 4H20v4.5h-4.5zM9.75 9.75h4.5v4.5h-4.5zM4 15.5h4.5V20H4zM15.5 15.5H20V20h-4.5z"/>',
+  crop: '<path d="M6.5 2.5v15h15M2.5 6.5h15v15"/>',
+  perspective: '<path d="M7.5 5h9l3.5 14H4z"/><circle cx="7.5" cy="5" r="1"/><circle cx="16.5" cy="5" r="1"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/>',
+  redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 000 11H13"/>',
+  copy: '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M15.5 8.5V6.5a2.5 2.5 0 00-2.5-2.5H6.5A2.5 2.5 0 004 6.5V13a2.5 2.5 0 002.5 2.5h2"/>',
+  save: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14"/>',
+  drag: '<path d="M8 9l4-4 4 4M12 5v10"/><path d="M5 14v4a2 2 0 002 2h10a2 2 0 002-2v-4"/>',
+  edit: '<path d="M4.5 19.5h4l10.5-10.5-4-4L4.5 15.5z"/><path d="M13 7l4 4"/>',
+  prev: '<path d="M14.5 6l-6 6 6 6"/>',
+  next: '<path d="M9.5 6l6 6-6 6"/>',
+  fit: '<path d="M4 9V5.5A1.5 1.5 0 015.5 4H9M15 4h3.5A1.5 1.5 0 0120 5.5V9M20 15v3.5a1.5 1.5 0 01-1.5 1.5H15M9 20H5.5A1.5 1.5 0 014 18.5V15"/>',
+  rotl: '<path d="M4 11a8 8 0 112.3 5.7"/><path d="M4 4v7h7"/>',
+  rotr: '<path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/>',
+  fliph: '<path d="M12 3v18"/><path d="M8.5 7.5L4 12l4.5 4.5zM15.5 7.5L20 12l-4.5 4.5z"/>',
+  flipv: '<path d="M3 12h18"/><path d="M7.5 8.5L12 4l4.5 4.5zM7.5 15.5L12 20l4.5-4.5z"/>',
+  background: '<rect x="3" y="3" width="18" height="18" rx="5"/><rect x="7.5" y="7.5" width="9" height="9" rx="2"/>',
+  transform: '<rect x="4" y="9" width="11" height="11" rx="2"/><path d="M9 4.5h3.5A7.5 7.5 0 0120 12v1.5"/><path d="M17.5 11l2.5 2.5 2.5-2.5"/>',
+};
