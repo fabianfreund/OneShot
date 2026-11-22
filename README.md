@@ -9,7 +9,7 @@
 > **Status:** early prototype (v0.1.x). Built and tested on macOS. Windows and Linux builds work with full-screen capture only (area and window selection are macOS-only for now).
 
 ## Download
-Get the latest build from [Releases](https://github.com/fabianfreund/OneShot/releases/latest): a `.dmg` for macOS (Apple Silicon or Intel), an `.exe` installer for Windows, and an `.AppImage` / `.deb` for Linux.
+Get the latest build from [Releases](https://github.com/fabianfreund/OneShot/releases/latest): a signed and notarized `.dmg` for macOS (Apple Silicon or Intel), an `.exe` installer for Windows, and an `.AppImage` / `.deb` for Linux.
 
 ## Highlights
 - **Capture in one key:** area, window or full screen. A quick-access card slides in with Copy, Annotate, Pin, Save and drag-out.
@@ -40,7 +40,7 @@ npm run dist:mac              # or dist:win, dist:linux, dist:all → dist/
 ```
 On macOS, dev builds get the Screen Recording permission through the terminal you ran `npm start` from. Relaunch after allowing it.
 
-Releases are one command: `npm run release:patch` (or `:minor`, `:major`) tests, bumps the version, tags and pushes. CI then builds all three platforms into a draft GitHub Release. Details in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Releases are one command: `npm run release:patch` (or `:minor`, `:major`) tests, bumps the version, builds and notarizes the Mac version locally and publishes the GitHub Release. CI then adds the Windows and Linux builds. Details in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Project layout
 ```
@@ -48,7 +48,7 @@ main.js              menu bar, shortcuts, capture, windows, IPC
 preload.js           safe bridge to the pages (window.oneshot)
 renderer/editor/     viewer + editor (document model, perspective warp, drawing, tools, UI)
 renderer/*.html      capture overlay, pinned image, capture bar, welcome screen
-scripts/             icon generator, smoke test
+scripts/             icon generator, smoke test, mac release (sign + notarize)
 test/                unit tests (node:test)
 docs/                development guide, research and plan
 ```

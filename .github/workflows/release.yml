@@ -1,13 +1,16 @@
-# Builds OneShot for macOS, Windows and Linux.
-# - Push a version tag (npm run release:patch|minor|major) → all three builds are
-#   attached to a draft GitHub Release for that version.
-# - Run manually (Actions → Release → Run workflow) → builds are kept as workflow artifacts only.
+# macOS builds are signed + notarized locally (scripts/release-mac.sh, `npm run release:mac`).
+# This builds Windows and Linux when a v* tag is pushed and attaches them to the same release.
+# Run it manually (Actions → Release → Run workflow) with an existing tag to rebuild that tag.
 name: Release
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build (e.g. v0.1.1)
+        required: true
 
 permissions:
   contents: write
@@ -17,10 +20,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        include:
+          - os: windows-latest
+            target: --win
+          - os: ubuntu-latest
+            target: --linux
     runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -29,18 +40,21 @@ jobs:
       - run: npm run lint
       - run: npm test
       - name: Build
-        run: npx electron-builder --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+        # Unsigned until Windows signing is set up.
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Unsigned builds until signing certificates are added as secrets.
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-      - uses: actions/upload-artifact@v4
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder ${{ matrix.target }} --publish never
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
         with:
-          name: OneShot-${{ runner.os }}
-          if-no-files-found: error
-          path: |
-            dist/*.dmg
-            dist/*.zip
+          tag_name: ${{ env.TAG }}
+          name: OneShot ${{ env.TAG }}
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          files: |
             dist/*.exe
+            dist/*.exe.blockmap
             dist/*.AppImage
             dist/*.deb
+            dist/latest.yml
+            dist/latest-linux.yml

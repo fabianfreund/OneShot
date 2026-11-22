@@ -22,9 +22,10 @@
     "dist:linux": "electron-builder --linux --publish never",
     "dist:all": "electron-builder --mac --win --linux --publish never",
     "preversion": "npm test",
-    "release:patch": "npm version patch -m \"Release v%s\" && git push --follow-tags",
-    "release:minor": "npm version minor -m \"Release v%s\" && git push --follow-tags",
-    "release:major": "npm version major -m \"Release v%s\" && git push --follow-tags",
+    "release:mac": "./scripts/release-mac.sh",
+    "release:patch": "npm version patch -m \"Release v%s\" && git push && npm run release:mac",
+    "release:minor": "npm version minor -m \"Release v%s\" && git push && npm run release:mac",
+    "release:major": "npm version major -m \"Release v%s\" && git push && npm run release:mac",
     "postinstall": "node node_modules/electron/install.js"
   },
   "devDependencies": {
@@ -55,7 +56,14 @@
       ],
       "extendInfo": {
         "NSScreenCaptureUsageDescription": "OneShot needs Screen Recording access to take screenshots."
-      }
+      },
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": true
+    },
+    "dmg": {
+      "sign": false
     },
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64", "arm64"] }]
