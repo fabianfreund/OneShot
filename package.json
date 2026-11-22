@@ -2,12 +2,25 @@
   "name": "oneshot",
   "productName": "OneShot",
   "version": "0.1.0",
-  "description": "A simple-on-the-surface, deep-underneath screenshot tool and image viewer for macOS.",
+  "description": "A simple-on-the-surface, deep-underneath screenshot tool and image viewer.",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --mac --dir",
+    "test": "node --test \"test/*.test.mjs\"",
+    "smoke": "node scripts/smoke.mjs",
+    "check": "npm test && npm run smoke",
+    "icon": "node scripts/make-icon.mjs",
+    "pack": "electron-builder --dir --publish never",
+    "dist": "electron-builder --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:linux": "electron-builder --linux --publish never",
+    "dist:all": "electron-builder --mac --win --linux --publish never",
+    "preversion": "npm test",
+    "release:patch": "npm version patch -m \"Release v%s\" && git push --follow-tags",
+    "release:minor": "npm version minor -m \"Release v%s\" && git push --follow-tags",
+    "release:major": "npm version major -m \"Release v%s\" && git push --follow-tags",
     "postinstall": "node node_modules/electron/install.js"
   },
   "devDependencies": {
@@ -17,13 +30,41 @@
   "build": {
     "appId": "app.oneshot.mac",
     "productName": "OneShot",
-    "files": ["main.js", "preload.js", "renderer/**/*"],
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": ["main.js", "preload.js", "package.json", "renderer/**/*"],
+    "publish": {
+      "provider": "github",
+      "releaseType": "draft"
+    },
     "mac": {
       "category": "public.app-category.graphics-design",
-      "target": ["dmg", "zip"],
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ],
       "extendInfo": {
         "NSScreenCaptureUsageDescription": "OneShot needs Screen Recording access to take screenshots."
       }
+    },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64", "arm64"] }]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb", "arch": ["x64"] }
+      ],
+      "category": "Graphics",
+      "maintainer": "OneShot",
+      "mimeTypes": ["image/png", "image/jpeg", "image/gif", "image/webp", "image/heic", "image/heif", "image/tiff", "image/bmp", "image/avif"]
     },
     "fileAssociations": [
       {
