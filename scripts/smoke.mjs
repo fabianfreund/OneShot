@@ -1,5 +1,5 @@
 // End-to-end smoke test: launches the real app (isolated debug profile) and checks
-// that the editor and the capture overlay load, edit, and render without renderer errors.
+// that the editor, capture overlay, welcome flow and Home load and render without renderer errors.
 // Run: npm run smoke
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -49,9 +49,24 @@ function run(name, args, env) {
   });
 }
 
+// Walks the welcome flow to the last step.
+const ONBOARDING_JS = `(async () => {
+  const q = (s) => document.querySelector(s), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (let i = 0; i < 4 && !q('.step:last-child.current'); i++) { (q('#skip:not(.hidden)') || q('#next')).click(); await wait(150); }
+  if (!q('.step:last-child.current')) throw new Error('welcome flow did not reach the last step');
+  if (!q('[data-sc="area"] kbd')) throw new Error('shortcut keycaps missing');
+})()`;
+const HOME_JS = `(async () => {
+  const q = (s) => document.querySelector(s);
+  if (!q('.cap kbd')) throw new Error('capture shortcuts missing');
+  if (!q('#dir').textContent) throw new Error('capture folder missing');
+})()`;
+
 const results = [
   await run('editor', [img], { ONESHOT_DEBUG_JS: EDITOR_JS }),
   await run('overlay', [], { ONESHOT_DEBUG_OVERLAY: img }),
+  await run('onboarding', [], { ONESHOT_DEBUG_WINDOW: 'onboarding', ONESHOT_DEBUG_JS: ONBOARDING_JS }),
+  await run('home', [], { ONESHOT_DEBUG_WINDOW: 'home', ONESHOT_DEBUG_JS: HOME_JS }),
 ];
 for (const r of results) {
   console.log(`${r.ok ? '✔' : '✖'} ${r.name}${r.ok ? `  (${r.shot})` : ''}`);

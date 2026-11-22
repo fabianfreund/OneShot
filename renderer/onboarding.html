@@ -4,37 +4,20 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
   <title>Welcome to OneShot</title>
+  <link rel="stylesheet" href="panel.css">
   <style>
-    :root {
-      --fg: #1d1d1f; --dim: rgba(29,29,31,.58); --card: rgba(255,255,255,.62); --edge: rgba(0,0,0,.07);
-      --key: #fff; --keyedge: rgba(0,0,0,.14); --blue: #0a84ff; --green: #30b158; --track: rgba(0,0,0,.14);
-      --bg: transparent;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root { --fg: #f5f5f7; --dim: rgba(245,245,247,.55); --card: rgba(255,255,255,.07); --edge: rgba(255,255,255,.08);
-        --key: rgba(255,255,255,.12); --keyedge: rgba(255,255,255,.1); --track: rgba(255,255,255,.2); }
-    }
-    body.nonmac { --bg: #f4f4f6; }
-    @media (prefers-color-scheme: dark) { body.nonmac { --bg: #1f1f22; } }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg);
-      font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif; user-select: none; }
-    .drag { position: fixed; inset: 0 0 auto 0; height: 44px; -webkit-app-region: drag; }
-
-    .track { display: flex; height: 100%; width: 300%; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
-    .step { width: calc(100% / 3); height: 100%; padding: 56px 40px 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    html, body { overflow: hidden; }
+    .track { --n: 4; display: flex; height: 100%; width: calc(var(--n) * 100%); transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+    .step { width: calc(100% / var(--n)); height: 100%; padding: 52px 36px 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
     .step > * { transition: opacity .35s .1s, transform .35s .1s; }
     .step:not(.current) > * { opacity: 0; transform: translateY(8px); }
 
     h1 { font-size: 24px; font-weight: 650; letter-spacing: -.02em; margin: 22px 0 6px; }
     p.sub { margin: 0; color: var(--dim); font-size: 13.5px; max-width: 360px; }
+    .step .card { margin-top: 24px; }
+    .step .card + .card { margin-top: 10px; }
 
-    /* App icon: gradient squircle with aperture */
-    .appicon { width: 104px; height: 104px; border-radius: 26px; position: relative; margin-top: 18px;
-      background: linear-gradient(135deg, #ff9a5a 0%, #ff4f8b 48%, #7b5cff 100%);
-      box-shadow: 0 18px 40px -12px rgba(255,79,139,.55), inset 0 1px 0 rgba(255,255,255,.35); }
-    .appicon::before { content: ''; position: absolute; inset: 26px; border-radius: 50%; border: 6px solid #fff; }
-    .appicon::after { content: ''; position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px; border-radius: 50%; background: #fff; }
+    .step > .appicon { margin-top: 18px; }
     .step.current .appicon { animation: pop .7s cubic-bezier(.2,1.4,.4,1); }
     @keyframes pop { from { transform: scale(.6) rotate(-12deg); opacity: 0; } }
 
@@ -43,58 +26,40 @@
       display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; }
     .tile svg { width: 24px; height: 24px; }
 
-    svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-
-    .badge { width: 88px; height: 88px; border-radius: 24px; margin-top: 18px; display: grid; place-items: center; color: #fff;
-      background: linear-gradient(160deg, #5ac8fa, #0a84ff); box-shadow: 0 16px 36px -14px rgba(10,132,255,.7); }
-    .badge svg { width: 44px; height: 44px; stroke-width: 1.6; }
+    .badge { width: 80px; height: 80px; border-radius: 22px; margin-top: 14px; display: grid; place-items: center; color: #fff; flex: none;
+      background: linear-gradient(160deg, #5ac8fa, #0a84ff); box-shadow: 0 16px 36px -14px rgba(10,132,255,.7); transition: background .3s; }
+    .badge svg { width: 40px; height: 40px; stroke-width: 1.6; }
     .badge.ok { background: linear-gradient(160deg, #5fd47b, #28a745); box-shadow: 0 16px 36px -14px rgba(48,177,88,.7); }
+    .badge.violet { background: linear-gradient(160deg, #a78bfa, #5e5ce6); box-shadow: 0 16px 36px -14px rgba(94,92,230,.7); }
 
-    .card { width: 100%; margin-top: 28px; border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 1px var(--edge); text-align: left; }
-    .row { display: flex; align-items: center; gap: 12px; padding: 11px 14px; min-height: 48px; }
-    .row + .row { border-top: 1px solid var(--edge); }
-    .row .ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none; color: #fff; }
-    .row .ic svg { width: 17px; height: 17px; }
-    .row .name { flex: 1; font-weight: 500; }
-    .row .name small { display: block; font-weight: 400; color: var(--dim); font-size: 11.5px; }
-    .keys { display: flex; gap: 4px; }
-    kbd { min-width: 24px; height: 24px; padding: 0 6px; border-radius: 6px; background: var(--key); box-shadow: inset 0 0 0 1px var(--keyedge), 0 1px 0 var(--keyedge);
-      display: grid; place-items: center; font: 500 12px/1 -apple-system, "Segoe UI", sans-serif; }
+    .tip { display: flex; gap: 10px; padding: 10px 14px; align-items: flex-start; font-size: 12px; color: var(--dim); }
+    .tip + .tip { border-top: 1px solid var(--edge); }
+    .tip b { color: var(--fg); font-weight: 600; }
+    .tip svg { width: 16px; height: 16px; flex: none; margin-top: 1px; color: var(--fg); }
 
-    .pill { font-size: 12px; font-weight: 600; color: var(--green); display: flex; align-items: center; gap: 5px; }
-    .pill svg { width: 15px; height: 15px; stroke-width: 2.4; }
-
-    button { font: inherit; border: 0; cursor: default; -webkit-app-region: no-drag; }
-    .btn { height: 28px; padding: 0 14px; border-radius: 8px; font-weight: 500; background: var(--key); color: var(--fg); box-shadow: inset 0 0 0 1px var(--keyedge); }
-    .btn:active { filter: brightness(.94); }
-    .btn.blue { background: var(--blue); color: #fff; box-shadow: none; }
-
-    .switch { position: relative; width: 34px; height: 20px; flex: none; }
-    .switch input { appearance: none; margin: 0; position: absolute; inset: 0; border-radius: 10px; background: var(--track); transition: background .2s; }
-    .switch input:checked { background: var(--blue); }
-    .switch input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
-      box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .2s; }
-    .switch input:checked::after { transform: translateX(14px); }
+    /* Fake menu bar with the OneShot icon highlighted. */
+    .menubar { margin-top: 26px; width: 100%; height: 30px; border-radius: 9px; padding: 0 12px; display: flex; align-items: center; justify-content: flex-end; gap: 14px;
+      background: var(--card); box-shadow: inset 0 0 0 1px var(--edge); font-size: 12px; font-weight: 500; }
+    .menubar .dim { color: var(--dim); }
+    .menubar svg { width: 15px; height: 15px; }
+    .menubar .me { position: relative; display: grid; place-items: center; width: 24px; height: 22px; border-radius: 6px; background: var(--blue); color: #fff; }
+    .step.current .menubar .me::after { content: ''; position: absolute; inset: -4px; border-radius: 9px; border: 2px solid var(--blue); animation: ping 1.6s ease-out infinite; }
+    @keyframes ping { from { opacity: .8; transform: scale(.85); } to { opacity: 0; transform: scale(1.35); } }
+    .menubar .me svg { stroke-width: 2; }
 
     .note { margin-top: 12px; font-size: 11.5px; color: var(--dim); min-height: 16px; }
 
-    footer { position: fixed; left: 0; right: 0; bottom: 0; height: 84px; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; }
+    footer { position: fixed; left: 0; right: 0; bottom: 0; height: 80px; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; }
     .dots { display: flex; gap: 7px; }
     .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--track); transition: background .2s, width .25s; }
     .dots i.on { background: var(--fg); width: 18px; border-radius: 4px; }
     .nav { display: flex; gap: 8px; align-items: center; }
-    .primary { height: 34px; padding: 0 20px; border-radius: 10px; background: var(--blue); color: #fff; font-weight: 600; font-size: 13.5px;
-      box-shadow: 0 6px 16px -6px rgba(10,132,255,.8); transition: transform .1s; }
-    .primary:active { transform: scale(.97); }
-    .ghost { height: 34px; padding: 0 12px; border-radius: 10px; background: transparent; color: var(--dim); font-weight: 500; }
-    .ghost:hover { color: var(--fg); }
-    .hidden { display: none !important; }
   </style>
 </head>
 <body>
   <div class="drag"></div>
   <div class="track" id="track">
-    <!-- 1 · Welcome -->
+    <!-- 0 · Welcome -->
     <section class="step">
       <div class="appicon"></div>
       <h1>Welcome to OneShot</h1>
@@ -106,7 +71,7 @@
       </div>
     </section>
 
-    <!-- 2 · Permission -->
+    <!-- 1 · Permission -->
     <section class="step">
       <div class="badge" id="perm-badge"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12.5" rx="2.2"/><path d="M9 20.5h6M12 17v3.5"/><circle cx="12" cy="10.75" r="2.4" fill="currentColor" stroke="none"/></svg></div>
       <h1 id="perm-title">Allow Screen Recording</h1>
@@ -121,25 +86,48 @@
       <div class="note" id="perm-note"></div>
     </section>
 
-    <!-- 3 · Ready -->
+    <!-- 2 · Shortcuts -->
+    <section class="step">
+      <div class="badge violet"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></div>
+      <h1>Capture from anywhere</h1>
+      <p class="sub">These shortcuts work in every app. No need to open OneShot first.</p>
+      <div class="card">
+        <div class="row"><span class="ic" style="background:#5e5ce6"><svg viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 015.5 4H8M16 4h2.5A1.5 1.5 0 0120 5.5V8M20 16v2.5a1.5 1.5 0 01-1.5 1.5H16M8 20H5.5A1.5 1.5 0 014 18.5V16"/></svg></span><span class="name">Capture Area<small>Drag to select a region</small></span><span class="keys" data-sc="area"></span></div>
+        <div class="row"><span class="ic" style="background:#0a84ff"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 9h17"/></svg></span><span class="name">Capture Window<small>Click a window</small></span><span class="keys" data-sc="window"></span></div>
+        <div class="row"><span class="ic" style="background:#30b158"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M9 20h6M12 16.5V20"/></svg></span><span class="name">Capture Screen<small>The whole display</small></span><span class="keys" data-sc="screen"></span></div>
+      </div>
+      <div class="card">
+        <div class="tip"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="10" height="9" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 019.5 4h9A1.5 1.5 0 0120 5.5v7a1.5 1.5 0 01-1.5 1.5H17"/></svg>
+          <span><b>After a capture</b>, a preview appears in the corner: copy it, annotate it, pin it or drag it into any app.</span></div>
+        <div class="tip"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-8.5 8.5"/></svg>
+          <span><b>Open any image</b> in OneShot to view it. Press <b>E</b> to edit.</span></div>
+      </div>
+    </section>
+
+    <!-- 3 · Menu bar -->
     <section class="step">
       <div class="badge ok"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
       <h1>You're all set</h1>
-      <p class="sub" id="ready-sub">OneShot lives in your menu bar.</p>
-      <div class="card">
-        <div class="row"><span class="ic" style="background:#5e5ce6"><svg viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 015.5 4H8M16 4h2.5A1.5 1.5 0 0120 5.5V8M20 16v2.5a1.5 1.5 0 01-1.5 1.5H16M8 20H5.5A1.5 1.5 0 014 18.5V16"/></svg></span><span class="name">Capture Area</span><span class="keys" data-sc="area"></span></div>
-        <div class="row"><span class="ic" style="background:#0a84ff"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 9h17"/></svg></span><span class="name">Capture Window</span><span class="keys" data-sc="window"></span></div>
-        <div class="row"><span class="ic" style="background:#30b158"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M9 20h6M12 16.5V20"/></svg></span><span class="name">Capture Screen</span><span class="keys" data-sc="screen"></span></div>
+      <p class="sub" id="ready-sub">OneShot runs quietly in your menu bar.</p>
+      <div class="menubar" id="menubar">
+        <span class="dim">Wi-Fi</span>
+        <span class="me"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/></svg></span>
+        <span>Mon 9:41</span>
       </div>
-      <div class="card" style="margin-top:12px">
-        <div class="row"><span class="name">Open at login</span><label class="switch"><input type="checkbox" id="opt-login"></label></div>
-        <div class="row"><span class="name">Show capture bar at launch</span><label class="switch"><input type="checkbox" id="opt-bar"></label></div>
+      <div class="card">
+        <div class="tip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/></svg>
+          <span id="tip-tray"><b>Click the icon</b> in the menu bar to capture, open images or quit.</span></div>
+        <div class="tip"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/></svg>
+          <span id="tip-home"><b>Open OneShot</b> from Applications any time for your captures and settings.</span></div>
+      </div>
+      <div class="card">
+        <div class="row" id="row-login"><span class="name">Open at login<small>Keep the shortcuts ready after a restart</small></span><label class="switch"><input type="checkbox" id="opt-login"></label></div>
       </div>
     </section>
   </div>
 
   <footer>
-    <div class="dots" id="dots"><i></i><i></i><i></i></div>
+    <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
     <div class="nav">
       <button class="ghost hidden" id="back">Back</button>
       <button class="ghost hidden" id="skip">Not now</button>

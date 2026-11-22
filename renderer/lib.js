@@ -9,3 +9,10 @@ export async function loadImage(file) {
   const res = await api.readImage(file);
   return { ...res, url: URL.createObjectURL(new Blob([res.data], { type: res.mime })) };
 }
+
+// "Alt+Shift+4" → keycaps (⌥ ⇧ 4 on macOS).
+const MAC_KEYS = { Alt: '⌥', Shift: '⇧', Cmd: '⌘', CmdOrCtrl: '⌘', Ctrl: '⌃' };
+export function keycaps(acc, platform = api.platform) {
+  const mac = platform === 'darwin';
+  return acc.split('+').map((k) => `<kbd>${mac ? (MAC_KEYS[k] || k) : k}</kbd>`).join('');
+}

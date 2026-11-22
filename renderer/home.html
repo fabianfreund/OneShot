@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <title>OneShot</title>
+  <link rel="stylesheet" href="panel.css">
+  <style>
+    html, body { overflow: hidden; }
+    body { display: flex; flex-direction: column; }
+    main { flex: 1; overflow-y: auto; padding: 46px 26px 18px; }
+
+    header { display: flex; align-items: center; gap: 14px; }
+    header .appicon { --s: 52px; }
+    header h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -.02em; }
+    .status { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12px; margin-top: 2px; }
+    .status i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(48,177,88,.18); }
+    .status.warn i { background: var(--orange); box-shadow: 0 0 0 3px rgba(255,159,10,.2); }
+
+    h2 { margin: 20px 2px 8px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); display: flex; justify-content: space-between; align-items: baseline; }
+    h2 .link { text-transform: none; letter-spacing: 0; font-size: 12px; }
+
+    .capture { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .cap { border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 1px var(--edge); padding: 14px 8px 12px; color: var(--fg);
+      display: flex; flex-direction: column; align-items: center; gap: 8px; font-weight: 500; transition: transform .1s, background .15s; }
+    .cap:hover { box-shadow: inset 0 0 0 1px var(--edge), 0 0 0 3px rgba(10,132,255,.25); }
+    .cap:active { transform: scale(.97); }
+    .cap .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #fff; }
+    .cap .ic svg { width: 19px; height: 19px; }
+    .cap kbd { min-width: 20px; height: 20px; font-size: 11px; border-radius: 5px; padding: 0 5px; }
+    .quick { display: flex; gap: 8px; margin-top: 10px; }
+    .quick .btn { flex: 1; height: 30px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .quick svg { width: 15px; height: 15px; }
+
+    .recent { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .thumb { aspect-ratio: 16 / 10; border-radius: 10px; overflow: hidden; background: var(--card); box-shadow: inset 0 0 0 1px var(--edge); padding: 0; position: relative; }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .2s; }
+    .thumb:hover img { transform: scale(1.04); }
+    .thumb span { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 7px 4px; font-size: 10.5px; color: #fff; text-align: left;
+      background: linear-gradient(transparent, rgba(0,0,0,.55)); opacity: 0; transition: opacity .15s; }
+    .thumb:hover span { opacity: 1; }
+    .empty { border-radius: 12px; border: 1.5px dashed var(--track); padding: 18px; text-align: center; color: var(--dim); font-size: 12px; }
+
+    footer { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 26px; border-top: 1px solid var(--edge); font-size: 11.5px; color: var(--dim); }
+  </style>
+</head>
+<body>
+  <div class="drag"></div>
+  <main>
+    <header>
+      <div class="appicon"></div>
+      <div>
+        <h1>OneShot</h1>
+        <div class="status" id="status"><i></i><span id="status-text">Running in the menu bar</span></div>
+      </div>
+    </header>
+
+    <h2>Capture</h2>
+    <div class="capture">
+      <button class="cap" data-capture="area"><span class="ic" style="background:#5e5ce6"><svg viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 015.5 4H8M16 4h2.5A1.5 1.5 0 0120 5.5V8M20 16v2.5a1.5 1.5 0 01-1.5 1.5H16M8 20H5.5A1.5 1.5 0 014 18.5V16"/><path d="M12 9v6M9 12h6"/></svg></span>Area<span class="keys" data-sc="area"></span></button>
+      <button class="cap" data-capture="window"><span class="ic" style="background:#0a84ff"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 9h17"/></svg></span>Window<span class="keys" data-sc="window"></span></button>
+      <button class="cap" data-capture="screen"><span class="ic" style="background:#30b158"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M9 20h6M12 16.5V20"/></svg></span>Screen<span class="keys" data-sc="screen"></span></button>
+    </div>
+    <div class="quick">
+      <button class="btn" id="open"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-8.5 8.5"/></svg>Open Image…</button>
+      <button class="btn" id="bar"><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="6" rx="3"/></svg>Capture Bar</button>
+    </div>
+
+    <h2>Recent captures <button class="link" id="folder">Show in Finder</button></h2>
+    <div class="recent" id="recent"></div>
+    <div class="empty hidden" id="empty">No captures yet. Press <span class="keys" style="display:inline-flex;vertical-align:middle" data-sc="area"></span> to take your first one.</div>
+
+    <h2>Settings</h2>
+    <div class="card">
+      <div class="row" id="row-perm">
+        <span class="ic" style="background:#ff453a"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 20h6"/></svg></span>
+        <span class="name">Screen Recording<small id="perm-detail">Needed to take screenshots</small></span>
+        <span class="pill hidden" id="perm-ok"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Allowed</span>
+        <button class="btn blue hidden" id="perm-fix">Allow…</button>
+      </div>
+      <div class="row" id="row-login">
+        <span class="ic" style="background:#8e8e93"><svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1011.4 0"/></svg></span>
+        <span class="name">Open at login<small>Keep the shortcuts ready after a restart</small></span>
+        <label class="switch"><input type="checkbox" id="opt-login"></label>
+      </div>
+      <div class="row">
+        <span class="ic" style="background:#0a84ff"><svg viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 012-2h3.5l2 2h7.5a2 2 0 012 2v7.5a2 2 0 01-2 2h-13a2 2 0 01-2-2z"/></svg></span>
+        <span class="name">Save captures to<small id="dir"></small></span>
+        <button class="btn" id="dir-change">Change…</button>
+      </div>
+      <div class="row">
+        <span class="ic" style="background:#ff9f0a"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg></span>
+        <span class="name">Welcome tour<small>Shortcuts and permissions walkthrough</small></span>
+        <button class="btn" id="tour">Show</button>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <span id="hint">Closing this window keeps OneShot running in the menu bar.</span>
+    <button class="btn" id="quit">Quit OneShot</button>
+  </footer>
+  <script type="module" src="home.js"></script>
+</body>
+</html>

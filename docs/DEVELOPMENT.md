@@ -4,20 +4,23 @@
 
 ```bash
 npm install
-npm start                    # first run: welcome window, then menu-bar only
+npm start                    # first run: welcome window; later launches: Home window
 npm start -- ~/Desktop/x.png # open an image directly
 ```
 
-On first launch a short welcome window asks for **Screen Recording** permission (macOS) and shows the shortcuts.
-After that OneShot starts silently in the menu bar (system tray on Windows/Linux).
+On first launch a short welcome window asks for **Screen Recording** permission (macOS), shows the shortcuts and explains the menu bar icon.
+macOS needs a relaunch after the permission is granted; the welcome window reopens at the same step until it is finished.
+After that, opening OneShot yourself (Finder, Dock, Start menu, or *Home & Settings…* / ⌘, in the menu bar) shows the **Home** window: capture buttons, recent captures and settings.
+Closing it leaves OneShot running in the menu bar (system tray on Windows/Linux). A launch at login starts silently.
 In dev, macOS grants the permission to the terminal you ran `npm start` from; relaunch after allowing it.
-Reset the welcome flow by deleting `~/Library/Application Support/OneShot/settings.json`, or use the menu-bar item *Welcome & Permissions…*.
+Reset the welcome flow by deleting `~/Library/Application Support/OneShot/settings.json`, or use *Welcome tour → Show* in Home.
+Bump `ONBOARDING_VERSION` in `main.js` when the welcome flow changes enough that existing users should see it again.
 
 ## Test
 
 ```bash
 npm test        # unit tests (document model, history, perspective warp), node:test, no deps
-npm run smoke   # launches the real app twice (editor + capture overlay) and fails on renderer errors
+npm run smoke   # launches the real app (editor, capture overlay, welcome, Home) and fails on renderer errors
 npm run lint    # ESLint (eslint.config.mjs)
 npm run check   # lint + unit tests + smoke
 ```
@@ -32,6 +35,7 @@ Dev builds only. They use an isolated profile in the temp folder, so they never 
 | `ONESHOT_DEBUG_JS="…"` | run this JS in that window before the screenshot (a throw is reported) |
 | `ONESHOT_DEBUG_QUIT=1` | quit after the screenshot |
 | `ONESHOT_DEBUG_OVERLAY=/img.png` | open the post-capture overlay for an image |
+| `ONESHOT_DEBUG_WINDOW=home` | open `home`, `onboarding` or `launcher` directly |
 
 ## Build
 
@@ -126,7 +130,9 @@ renderer/editor/        viewer + editor (ES modules)
 renderer/overlay.*      post-capture quick-access card
 renderer/pin.*          floating pinned screenshot
 renderer/launcher.*     floating capture bar
-renderer/onboarding.*   first-run welcome + permission
+renderer/onboarding.*   first-run welcome: permission, shortcuts, menu bar
+renderer/home.*         Home window: capture, recent captures, settings
+renderer/panel.css      shared styles of the welcome and Home windows
 renderer/tokens.css     design tokens shared by all pages
 scripts/                icon generator, smoke test, PNG encoder, release-mac.sh
 test/                   unit tests

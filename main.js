@@ -24,28 +24,44 @@ const R = (f) => path.join(__dirname, 'renderer', f);
 let tray = null;
 let launcher = null;
 let onboarding = null;
+let home = null;
 const pending = [];
 const overlays = [];
 
 const isImage = (p) => typeof p === 'string' && IMAGE_EXT.has(path.extname(p).toLowerCase());
-const captureDir = () => path.join(app.getPath('pictures'), 'OneShot');
+const captureDir = () => settings.captureDir || path.join(app.getPath('pictures'), 'OneShot');
 const openCaptureFolder = () => { fs.mkdirSync(captureDir(), { recursive: true }); shell.openPath(captureDir()); };
 const IMAGE_FILTERS = [{ name: 'Images', extensions: [...IMAGE_EXT].map((e) => e.slice(1)) }];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ── Settings (tiny JSON file in userData) ────────────────────────────────────
-const DEFAULTS = { onboarded: false, onboardingStep: 0, showBarOnLaunch: false };
+// Bump ONBOARDING_VERSION when the welcome flow changes enough that existing
+// users should see it once more.
+const ONBOARDING_VERSION = 2;
+const DEFAULTS = { onboardedVersion: 0, onboardingStep: 0, onboardingActive: false, captureDir: null };
 let settings = { ...DEFAULTS };
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 function loadSettings() {
   try { settings = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) }; } catch { settings = { ...DEFAULTS }; }
+  delete settings.onboarded; delete settings.showBarOnLaunch; // v0.1 keys
 }
+const needsOnboarding = () => settings.onboardedVersion < ONBOARDING_VERSION || settings.onboardingActive;
 function saveSettings(patch) {
   Object.assign(settings, patch);
   try { fs.mkdirSync(path.dirname(settingsFile()), { recursive: true }); fs.writeFileSync(settingsFile(), JSON.stringify(settings, null, 2)); } catch (err) { console.error('settings', err); }
 }
 // macOS only; Windows/Linux need no permission to capture.
 const screenAccess = () => (IS_MAC ? systemPreferences.getMediaAccessStatus('screen') : 'granted');
+
+// Login item. Windows passes LOGIN_ARG so we can tell a login launch from a
+// manual one; macOS reports it via wasOpenedAtLogin (unreliable on macOS 13+,
+// hence the uptime fallback). Linux has no login items in Electron.
+const LOGIN_ARG = '--login';
+const loginOpts = IS_WIN ? { args: [LOGIN_ARG] } : {};
+const openAtLogin = () => !IS_LINUX && app.getLoginItemSettings(loginOpts).openAtLogin;
+const setOpenAtLogin = (on) => { if (!IS_LINUX) app.setLoginItemSettings({ openAtLogin: !!on, ...loginOpts }); };
+const launchedAtLogin = () => process.argv.includes(LOGIN_ARG)
+  || (IS_MAC && (app.getLoginItemSettings().wasOpenedAtLogin || (app.isPackaged && openAtLogin() && os.uptime() < 180)));
 
 // ── App lifecycle ────────────────────────────────────────────────────────────
 // Debug snapshot runs get their own profile so they never hand off to a running OneShot.
@@ -55,8 +71,7 @@ else if (!app.requestSingleInstanceLock()) app.quit();
 app.on('second-instance', (_e, argv) => {
   const files = argv.filter((a) => isImage(a) && fs.existsSync(a));
   if (files.length) files.forEach((f) => openEditor(path.resolve(f)));
-  else if (!settings.onboarded) openOnboarding();
-  else openLauncher();
+  else openMain();
 });
 
 // Finder "Open With" / double-click when OneShot is the default viewer.
@@ -66,7 +81,9 @@ app.on('open-file', (e, p) => {
   else pending.push(p);
 });
 
+let readyAt = 0;
 app.whenReady().then(() => {
+  readyAt = Date.now();
   loadSettings();
   syncDock();
   buildMenu();
@@ -76,14 +93,17 @@ app.whenReady().then(() => {
   const files = [...pending, ...argvFiles];
   if (files.length) files.forEach((f) => openEditor(f));
   else if (process.env.ONESHOT_DEBUG_OVERLAY && !app.isPackaged) showOverlay(process.env.ONESHOT_DEBUG_OVERLAY);
-  else if (!settings.onboarded) openOnboarding();
-  else if (settings.showBarOnLaunch) openLauncher();
-  // otherwise start silently: OneShot lives in the menu bar / tray.
+  else if (process.env.ONESHOT_DEBUG_WINDOW && !app.isPackaged) ({ home: openHome, onboarding: openOnboarding, launcher: openLauncher })[process.env.ONESHOT_DEBUG_WINDOW]?.();
+  else if (needsOnboarding()) openOnboarding();
+  else if (!launchedAtLogin()) openHome();
+  // launched at login: start silently, OneShot lives in the menu bar / tray.
 });
 
+// Dock icon click / opening OneShot again from Finder while it runs.
 app.on('activate', () => {
-  if (!settings.onboarded) openOnboarding();
-  else if (!BrowserWindow.getAllWindows().some((w) => w.oneshotKind === 'editor')) openLauncher();
+  if (Date.now() - readyAt < 2000) return; // macOS can send this during launch; whenReady already decided what to show
+  const open = BrowserWindow.getAllWindows().some((w) => w.isVisible() && ['editor', 'home', 'onboarding'].includes(w.oneshotKind));
+  if (!open) openMain();
 });
 app.on('window-all-closed', () => { /* keep living in the menu bar */ });
 app.on('will-quit', () => globalShortcut.unregisterAll());
@@ -93,7 +113,7 @@ app.on('will-quit', () => globalShortcut.unregisterAll());
 // otherwise OneShot is a pure menu-bar app like CleanShot.
 function syncDock() {
   if (!IS_MAC || !app.dock) return;
-  const need = BrowserWindow.getAllWindows().some((w) => !w.isDestroyed() && ['editor', 'onboarding'].includes(w.oneshotKind));
+  const need = BrowserWindow.getAllWindows().some((w) => !w.isDestroyed() && ['editor', 'onboarding', 'home'].includes(w.oneshotKind));
   if (need) app.dock.show(); else app.dock.hide();
 }
 function trackDock(win) {
@@ -129,9 +149,16 @@ function openEditor(file, { mode = 'view' } = {}) {
   return win;
 }
 
-// First-run welcome: intro → permission → shortcuts. Reopens at the saved step.
+// What a manual launch shows: the welcome flow until it is finished, then Home.
+function openMain() {
+  if (needsOnboarding()) openOnboarding(); else openHome();
+}
+
+// Welcome: intro → permission → shortcuts → menu bar. Reopens at the saved
+// step until finished, including after the relaunch macOS needs for the permission.
 function openOnboarding(step) {
-  if (typeof step === 'number') saveSettings({ onboardingStep: step });
+  saveSettings({ onboardingActive: true, ...(typeof step === 'number' ? { onboardingStep: step } : {}) });
+  if (home && !home.isDestroyed()) home.close();
   if (onboarding && !onboarding.isDestroyed()) {
     onboarding.webContents.send('onboarding:step', settings.onboardingStep);
     onboarding.show(); onboarding.focus(); return;
@@ -150,7 +177,25 @@ function openOnboarding(step) {
   devHooks(onboarding);
 }
 
-// Compact floating capture bar (shown when OneShot opens without an image).
+// Home: capture buttons, recent captures and settings. Closing it keeps
+// OneShot running in the menu bar.
+function openHome() {
+  if (home && !home.isDestroyed()) { home.show(); home.focus(); return; }
+  home = new BrowserWindow({
+    width: 500, height: 780, minWidth: 440, minHeight: 520, maximizable: false, fullscreenable: false, show: false,
+    ...chrome(16),
+    title: 'OneShot',
+    webPreferences: { preload: PRELOAD },
+  });
+  home.oneshotKind = 'home';
+  home.setMenuBarVisibility(false);
+  home.loadFile(R('home.html'));
+  home.once('ready-to-show', () => { home.show(); app.focus({ steal: true }); });
+  trackDock(home);
+  devHooks(home);
+}
+
+// Compact floating capture bar.
 function openLauncher() {
   if (launcher && !launcher.isDestroyed()) { launcher.show(); launcher.focus(); return; }
   const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
@@ -230,14 +275,22 @@ function capture(kind) {
   fs.mkdirSync(captureDir(), { recursive: true });
   const file = path.join(captureDir(), `OneShot ${stamp()}.png`);
   const args = { area: ['-i'], window: ['-i', '-W'], screen: ['-m'] }[kind] || ['-i'];
-  const bar = launcher && !launcher.isDestroyed() && launcher.isVisible() ? launcher : null;
-  bar?.hide(); // keep the bar out of the shot
-  if (!IS_MAC) return void setTimeout(() => captureFallback(file).then(() => { closeLauncher(); showOverlay(file); })
-    .catch((err) => { console.error('capture failed', err); if (bar && !bar.isDestroyed()) bar.show(); }), bar ? 150 : 0);
+  // Keep our own bar / Home window out of the shot, bring them back afterwards.
+  const hidden = [launcher, home].filter((w) => w && !w.isDestroyed() && w.isVisible());
+  hidden.forEach((w) => w.hide());
+  const restore = () => hidden.forEach((w) => { if (!w.isDestroyed()) w.show(); });
+  const done = () => {
+    closeLauncher();
+    if (home && !home.isDestroyed() && hidden.includes(home)) { home.showInactive(); refreshHome(); }
+    showOverlay(file);
+  };
+  const delay = hidden.length ? 200 : 0;
+  if (!IS_MAC) return void setTimeout(() => captureFallback(file).then(done)
+    .catch((err) => { console.error('capture failed', err); restore(); }), delay);
   setTimeout(() => execFile('/usr/sbin/screencapture', [...args, file], (err) => {
-    if (fs.existsSync(file)) { closeLauncher(); showOverlay(file); }
-    else { if (bar && !bar.isDestroyed()) bar.show(); if (err) console.error('capture failed', err); }
-  }), bar ? 150 : 0);
+    if (fs.existsSync(file)) done();
+    else { restore(); if (err) console.error('capture failed', err); }
+  }), delay);
 }
 
 // Windows/Linux prototype: grab the display under the cursor (area/window
@@ -293,10 +346,9 @@ function updateTrayMenu() {
     { label: 'Open Image…', click: openDialog },
     { label: 'Open Captures Folder', click: openCaptureFolder },
     { type: 'separator' },
+    { label: 'Home & Settings…', accelerator: 'CmdOrCtrl+,', click: openMain },
     // Login items aren't supported by Electron on Linux.
-    ...(IS_LINUX ? [] : [{ label: 'Open at Login', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin, click: (i) => { app.setLoginItemSettings({ openAtLogin: i.checked }); } }]),
-    { label: 'Show Capture Bar at Launch', type: 'checkbox', checked: settings.showBarOnLaunch, click: (i) => saveSettings({ showBarOnLaunch: i.checked }) },
-    { label: 'Welcome & Permissions…', click: () => openOnboarding(0) },
+    ...(IS_LINUX ? [] : [{ label: 'Open at Login', type: 'checkbox', checked: openAtLogin(), click: (i) => setOpenAtLogin(i.checked) }]),
     { type: 'separator' },
     { label: `OneShot ${app.getVersion()}`, enabled: false },
     { label: 'Quit OneShot', role: 'quit' },
@@ -308,7 +360,19 @@ function updateTrayMenu() {
 function buildMenu() {
   const send = (cmd) => BrowserWindow.getFocusedWindow()?.webContents.send('menu', cmd);
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    ...(IS_MAC ? [{ role: 'appMenu' }] : []),
+    ...(IS_MAC ? [{
+      role: 'appMenu', submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { label: 'Settings…', accelerator: 'Cmd+,', click: openMain },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    }] : []),
     {
       label: 'File', submenu: [
         { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: openDialog },
@@ -318,7 +382,7 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Save Copy…', accelerator: 'CmdOrCtrl+S', click: () => send('save') },
         { role: 'close' },
-        ...(IS_MAC ? [] : [{ type: 'separator' }, { label: 'Quit OneShot', role: 'quit' }]),
+        ...(IS_MAC ? [] : [{ type: 'separator' }, { label: 'Settings…', accelerator: 'Ctrl+,', click: openMain }, { label: 'Quit OneShot', role: 'quit' }]),
       ],
     },
     {
@@ -354,14 +418,52 @@ async function openDialog() {
   return filePaths.length;
 }
 
+// ── IPC: app state, settings, Home ───────────────────────────────────────────
+const appState = () => ({
+  platform: process.platform, packaged: app.isPackaged, version: app.getVersion(), screen: screenAccess(),
+  openAtLogin: openAtLogin(), shortcuts: SHORTCUTS, captureDir: captureDir(), home: os.homedir(),
+});
+const refreshHome = () => { if (home && !home.isDestroyed()) home.webContents.send('home:refresh'); };
+ipcMain.handle('app:state', appState);
+ipcMain.on('settings:set', (_e, key, value) => {
+  if (key === 'openAtLogin') setOpenAtLogin(value);
+  updateTrayMenu();
+});
+ipcMain.on('app:quit', () => app.quit());
+
+// Newest captures first, with small thumbnails for Home.
+ipcMain.handle('captures:recent', async (_e, limit = 6) => {
+  let names = [];
+  try { names = await fs.promises.readdir(captureDir()); } catch { return []; }
+  const files = await Promise.all(names.filter((n) => isImage(n) && !n.startsWith('.')).map(async (n) => {
+    const p = path.join(captureDir(), n);
+    try { return { path: p, name: n, mtime: (await fs.promises.stat(p)).mtimeMs }; } catch { return null; }
+  }));
+  return files.filter(Boolean).sort((a, b) => b.mtime - a.mtime).slice(0, limit).map((f) => {
+    const img = nativeImage.createFromPath(f.path);
+    const thumb = img.isEmpty() ? '' : img.resize({ width: 320, quality: 'good' }).toDataURL();
+    const label = new Date(f.mtime).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    return { ...f, thumb, label };
+  });
+});
+ipcMain.handle('captures:choose-dir', async (e) => {
+  const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), {
+    defaultPath: captureDir(), properties: ['openDirectory', 'createDirectory'], buttonLabel: 'Choose',
+  });
+  if (canceled || !filePaths[0]) return null;
+  saveSettings({ captureDir: filePaths[0] });
+  return filePaths[0];
+});
+ipcMain.handle('home:open', () => openDialog());
+ipcMain.on('home:launcher', () => { if (home && !home.isDestroyed()) home.close(); openLauncher(); });
+ipcMain.on('home:permission', () => openOnboarding(1));
+ipcMain.on('home:tour', () => openOnboarding(0));
+
 // ── IPC: onboarding ──────────────────────────────────────────────────────────
-ipcMain.handle('onboarding:state', () => ({
-  platform: process.platform, packaged: app.isPackaged, screen: screenAccess(), step: settings.onboardingStep,
-  openAtLogin: !IS_LINUX && app.getLoginItemSettings().openAtLogin, showBarOnLaunch: settings.showBarOnLaunch, shortcuts: SHORTCUTS,
-}));
+ipcMain.handle('onboarding:state', () => ({ ...appState(), step: settings.onboardingStep }));
 ipcMain.handle('onboarding:request-screen', async () => {
   if (!IS_MAC) return 'granted';
-  saveSettings({ onboardingStep: 1 }); // resume here after the relaunch macOS requires
+  saveSettings({ onboardingStep: 1, onboardingActive: true }); // resume here after the relaunch macOS requires
   // Touching the capture API registers OneShot in System Settings and shows the system prompt once.
   try { await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } }); } catch {}
   const status = screenAccess();
@@ -369,16 +471,11 @@ ipcMain.handle('onboarding:request-screen', async () => {
   return status;
 });
 ipcMain.on('onboarding:step', (_e, step) => saveSettings({ onboardingStep: step }));
-ipcMain.on('onboarding:set', (_e, key, value) => {
-  if (key === 'openAtLogin') app.setLoginItemSettings({ openAtLogin: !!value });
-  if (key === 'showBarOnLaunch') saveSettings({ showBarOnLaunch: !!value });
-  updateTrayMenu();
-});
 ipcMain.on('onboarding:relaunch', () => { app.relaunch(); app.exit(0); });
 ipcMain.on('onboarding:finish', () => {
-  saveSettings({ onboarded: true, onboardingStep: 0 });
+  saveSettings({ onboardedVersion: ONBOARDING_VERSION, onboardingStep: 0, onboardingActive: false });
+  openHome(); // land in Home so people see where captures and settings live
   if (onboarding && !onboarding.isDestroyed()) onboarding.close();
-  openLauncher(); // show the capture bar once so people see where things live
 });
 
 // ── IPC ──────────────────────────────────────────────────────────────────────
@@ -470,7 +567,7 @@ function devHooks(win) {
     if (e.level === 'error' || e.level === 'warning') console.log(`[renderer:${e.level}] ${e.message} (${e.sourceId}:${e.lineNumber})`);
   });
   const shot = process.env.ONESHOT_DEBUG_SHOT;
-  if (!shot || !['editor', 'launcher', 'onboarding', 'overlay'].includes(win.oneshotKind)) return;
+  if (!shot || !['editor', 'launcher', 'onboarding', 'overlay', 'home'].includes(win.oneshotKind)) return;
   win.webContents.once('did-finish-load', () => setTimeout(async () => {
     if (process.env.ONESHOT_DEBUG_JS) {
       try { await win.webContents.executeJavaScript(process.env.ONESHOT_DEBUG_JS); } catch (err) { console.log('debug js error', err); }

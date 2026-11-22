@@ -18,7 +18,7 @@ Get the latest build from [Releases](https://github.com/fabianfreund/OneShot/rel
 - **Photo tools too:** crop, perspective crop (straighten a photographed document), rotate and flip.
 - **Pin to screen:** keep a capture floating on top as a reference.
 - **Default image viewer:** borderless viewer that flips through the folder with ← →, and turns into the editor with **E**.
-- **Lives in the menu bar:** no Dock icon unless an image is open.
+- **Lives in the menu bar:** no Dock icon unless a window is open. Open the app yourself to get Home: capture buttons, recent captures and settings.
 
 ## Shortcuts
 | | |
