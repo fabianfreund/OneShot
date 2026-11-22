@@ -1,7 +1,7 @@
 {
   "name": "oneshot",
   "productName": "OneShot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A simple-on-the-surface, deep-underneath screenshot tool and image viewer.",
   "main": "main.js",
   "private": true,
@@ -43,7 +43,13 @@
       "output": "dist",
       "buildResources": "build"
     },
-    "files": ["main.js", "preload.js", "image-types.js", "package.json", "renderer/**/*"],
+    "files": [
+      "main.js",
+      "preload.js",
+      "image-types.js",
+      "package.json",
+      "renderer/**/*"
+    ],
     "publish": {
       "provider": "github",
       "releaseType": "draft"
@@ -51,8 +57,20 @@
     "mac": {
       "category": "public.app-category.graphics-design",
       "target": [
-        { "target": "dmg", "arch": ["arm64", "x64"] },
-        { "target": "zip", "arch": ["arm64", "x64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ],
       "extendInfo": {
         "NSScreenCaptureUsageDescription": "OneShot needs Screen Recording access to take screenshots."
@@ -66,7 +84,15 @@
       "sign": false
     },
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64", "arm64"] }]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -74,16 +100,48 @@
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64"] },
-        { "target": "deb", "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "category": "Graphics",
       "maintainer": "OneShot",
-      "mimeTypes": ["image/png", "image/jpeg", "image/gif", "image/webp", "image/heic", "image/heif", "image/tiff", "image/bmp", "image/avif"]
+      "mimeTypes": [
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+        "image/tiff",
+        "image/bmp",
+        "image/avif"
+      ]
     },
     "fileAssociations": [
       {
-        "ext": ["png", "jpg", "jpeg", "gif", "webp", "heic", "heif", "tif", "tiff", "bmp", "avif"],
+        "ext": [
+          "png",
+          "jpg",
+          "jpeg",
+          "gif",
+          "webp",
+          "heic",
+          "heif",
+          "tif",
+          "tiff",
+          "bmp",
+          "avif"
+        ],
         "name": "Image",
         "role": "Editor",
         "rank": "Default"
