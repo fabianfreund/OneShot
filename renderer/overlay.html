@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob:; style-src 'self' 'unsafe-inline'">
+  <style>
+    /* Same tokens as the editor dock / popovers (editor.css) */
+    :root {
+      --fg: #1d1d1f; --fg2: rgba(0,0,0,.5); --line: rgba(0,0,0,.09); --hover: rgba(0,0,0,.06); --press: rgba(0,0,0,.1);
+      --glass: rgba(255,255,255,.72); --glass-edge: rgba(0,0,0,.08);
+      --float: 0 12px 36px rgba(0,0,0,.16), 0 2px 6px rgba(0,0,0,.06); --ease: cubic-bezier(.2,.8,.2,1);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --fg: #f5f5f7; --fg2: rgba(255,255,255,.5); --line: rgba(255,255,255,.1); --hover: rgba(255,255,255,.09); --press: rgba(255,255,255,.15);
+        --glass: rgba(44,44,48,.72); --glass-edge: rgba(255,255,255,.1); --float: 0 12px 36px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.2); }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; color: var(--fg);
+      font: 13px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable", "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+    svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* The screenshot is the card */
+    .card {
+      position: absolute; inset: 10px; border-radius: 14px; overflow: hidden; background: #111; cursor: grab;
+      box-shadow: 0 12px 30px -6px rgba(0,0,0,.45), 0 0 0 .5px var(--glass-edge);
+      animation: in .45s cubic-bezier(.2,1.2,.35,1) both;
+    }
+    .card:active { cursor: grabbing; }
+    .card.out { animation: out .24s cubic-bezier(.5,0,.8,.3) both; }
+    @keyframes in { from { transform: translateY(18px) scale(.94); opacity: 0; } }
+    @keyframes out { to { transform: translateX(-24px) scale(.96); opacity: 0; } }
+    #thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s var(--ease); }
+    .card:hover #thumb { transform: scale(1.02); }
+
+    /* Floating glass, identical to #dock / .pop — only on hover */
+    .glass { background: var(--glass); backdrop-filter: blur(28px) saturate(1.8); box-shadow: var(--float), 0 0 0 .5px var(--glass-edge); }
+    .hov { opacity: 0; transition: opacity .22s, transform .32s var(--ease); }
+    .card:hover .hov { opacity: 1; }
+
+    button { font: inherit; border: 0; color: inherit; background: transparent; cursor: default; padding: 0; }
+    .tb { width: 32px; height: 30px; border-radius: 8px; display: grid; place-items: center; opacity: .8; transition: background .12s, opacity .12s; }
+    .tb:hover { background: var(--hover); opacity: 1; }
+    .tb:active { background: var(--press); opacity: 1; }
+
+    #close { position: absolute; top: 8px; left: 8px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; transform: scale(.9); }
+    #close svg { width: 12px; height: 12px; stroke-width: 2.2; }
+    .card:hover #close { transform: none; }
+    #dims { position: absolute; top: 8px; right: 8px; height: 26px; padding: 0 10px; border-radius: 13px; display: flex; align-items: center;
+      font-size: 11px; color: var(--fg2); font-variant-numeric: tabular-nums; transform: translateY(-4px); }
+    .card:hover #dims { transform: none; }
+
+    .bar { position: absolute; left: 50%; bottom: 10px; display: flex; align-items: center; gap: 1px; padding: 4px; border-radius: 14px;
+      transform: translateX(-50%) translateY(12px) scale(.96); }
+    .card:hover .bar { transform: translateX(-50%); }
+    #copy { width: auto; display: flex; gap: 6px; padding: 0 10px 0 8px; font-weight: 500; opacity: 1; }
+    #copy .ok { display: none; }
+    .card.copied #copy .ok { display: block; }
+    .card.copied #copy .cp { display: none; }
+    .sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line); }
+
+    /* Countdown: a hairline that drains along the bottom edge, hidden + paused on hover */
+    .timer { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; transform-origin: left; background: rgba(255,255,255,.7);
+      animation: drain var(--life, 10s) linear forwards; transition: opacity .2s; }
+    .card:hover .timer, .card.hold .timer { animation-play-state: paused; opacity: 0; }
+    @keyframes drain { to { transform: scaleX(0); } }
+
+    .done { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.25);
+      opacity: 0; transition: opacity .18s; pointer-events: none; }
+    .done span { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 14px; font-weight: 500; }
+    .card.copied .done { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card" draggable="true">
+    <img id="thumb" alt="">
+    <div class="timer"></div>
+    <button id="close" class="hov glass" title="Dismiss  esc"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <span id="dims" class="hov glass"></span>
+    <div class="bar hov glass">
+      <button class="tb" id="copy" title="Copy  ⌘C">
+        <svg class="cp" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg>
+        <svg class="ok" viewBox="0 0 24 24" style="stroke-width:2.6"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Copy
+      </button>
+      <button class="tb" id="edit" title="Edit & annotate"><svg viewBox="0 0 24 24"><path d="M14.5 5.5l4 4L9 19H5v-4z"/><path d="M12.5 7.5l4 4"/></svg></button>
+      <span class="sep"></span>
+      <button class="tb" id="pin" title="Pin to screen"><svg viewBox="0 0 24 24"><path d="M9 4h6l-1 6 4 3v2H6v-2l4-3zM12 15v6"/></svg></button>
+      <button class="tb" id="savecopy" title="Save a copy…"><svg viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14"/></svg></button>
+      <button class="tb" id="reveal" title="Show in Finder"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></button>
+    </div>
+    <div class="done"><span class="glass"><svg viewBox="0 0 24 24" style="stroke-width:2.6"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Copied</span></div>
+  </div>
+  <script src="overlay.js"></script>
+</body>
+</html>

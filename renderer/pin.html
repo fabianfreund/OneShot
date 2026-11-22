@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob:; style-src 'self' 'unsafe-inline'">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000; -webkit-app-region: drag; }
+    img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
+    button { position: absolute; top: 8px; left: 8px; width: 22px; height: 22px; border: 0; border-radius: 50%;
+      background: rgba(0,0,0,.6); color: #fff; font: 600 13px -apple-system; line-height: 22px; opacity: 0;
+      transition: opacity .15s; -webkit-app-region: no-drag; backdrop-filter: blur(10px); }
+    body:hover button { opacity: 1; }
+  </style>
+</head>
+<body>
+  <img id="img" alt="">
+  <button id="x" title="Close (esc)">×</button>
+  <script src="pin.js"></script>
+</body>
+</html>

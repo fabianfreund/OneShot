@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'">
+  <title>OneShot</title>
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body class="mode-view empty">
+  <header id="titlebar">
+    <div id="title"><span id="filename">OneShot</span><span id="dims"></span></div>
+    <div id="actions">
+      <div class="tb" id="dragout" draggable="true" title="Drag into any app"></div>
+      <button class="tb" id="copy" title="Copy  ⌘C"></button>
+      <button class="tb" id="save" title="Save Copy…  ⌘S"></button>
+      <button class="btn" id="edit-toggle" title="Edit  E">Edit</button>
+    </div>
+  </header>
+
+  <main id="stage-wrap">
+    <canvas id="stage"></canvas>
+  </main>
+
+  <!-- Viewer: tiny dark pill -->
+  <div id="pill">
+    <button class="pb" id="prev" title="Previous  ←"></button>
+    <span id="counter">1 / 1</span>
+    <button class="pb" id="next" title="Next  →"></button>
+    <span class="psep"></span>
+    <button class="pb" id="zoom-fit" title="Fit / Actual size  ⌘0 ⌘1"></button>
+    <button class="pb" id="pill-edit" title="Edit  E"></button>
+  </div>
+
+  <!-- Editor: one floating glass dock -->
+  <div id="dock">
+    <div id="tools"></div>
+    <span class="gap"></span>
+    <button class="tb" id="style-btn" title="Color & Size"><span class="dot"></span></button>
+    <button class="tb" id="bg-btn" title="Background"></button>
+    <button class="tb" id="more-btn" title="Rotate & Flip"></button>
+    <span class="gap"></span>
+    <button class="tb" id="undo" title="Undo  ⌘Z"></button>
+    <button class="tb" id="redo" title="Redo  ⇧⌘Z"></button>
+  </div>
+
+  <div class="pop" id="pop-style">
+    <div id="colors" class="colors"></div>
+    <div class="seg" id="size"><button data-v="0">S</button><button data-v="1">M</button><button data-v="2">L</button></div>
+    <div class="seg" id="text-style"><button data-v="plain">Aa</button><button data-v="outline" class="outline">Aa</button><button data-v="pill" class="pillstyle"><span>Aa</span></button></div>
+  </div>
+
+  <div class="pop wide" id="pop-bg">
+    <div class="row">
+      <span class="label">Background</span>
+      <label class="switch"><input type="checkbox" id="bg-on"><span></span></label>
+    </div>
+    <div id="bg-swatches" class="swatches"></div>
+    <div class="sliders">
+      <label title="Padding"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg><input type="range" id="bg-padding" min="0" max="25" step="0.5"></label>
+      <label title="Corner radius"><svg viewBox="0 0 24 24"><path d="M5 19V11a6 6 0 016-6h8"/></svg><input type="range" id="bg-radius" min="0" max="40"></label>
+      <label title="Shadow"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M20 8v10a2 2 0 01-2 2H8"/></svg><input type="range" id="bg-shadow" min="0" max="100"></label>
+    </div>
+    <div class="seg" id="bg-ratio">
+      <button data-v="auto">Auto</button><button data-v="1:1">1:1</button><button data-v="4:3">4:3</button><button data-v="16:9">16:9</button>
+    </div>
+  </div>
+
+  <div class="pop" id="pop-more">
+    <div class="grid4">
+      <button class="tb" id="rot-l" title="Rotate Left"></button>
+      <button class="tb" id="rot-r" title="Rotate Right"></button>
+      <button class="tb" id="flip-h" title="Flip Horizontal"></button>
+      <button class="tb" id="flip-v" title="Flip Vertical"></button>
+    </div>
+  </div>
+
+  <div id="hud">
+    <span id="hud-text"></span>
+    <button class="btn small" id="hud-cancel">Cancel</button>
+    <button class="btn small primary" id="hud-apply">Apply</button>
+  </div>
+
+  <textarea id="text-input" spellcheck="false"></textarea>
+  <div id="toast"></div>
+  <script src="editor.js"></script>
+</body>
+</html>

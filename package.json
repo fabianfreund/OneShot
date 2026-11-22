@@ -1,0 +1,37 @@
+{
+  "name": "oneshot",
+  "productName": "OneShot",
+  "version": "0.1.0",
+  "description": "A simple-on-the-surface, deep-underneath screenshot tool and image viewer for macOS.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --mac --dir",
+    "postinstall": "node node_modules/electron/install.js"
+  },
+  "devDependencies": {
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "app.oneshot.mac",
+    "productName": "OneShot",
+    "files": ["main.js", "preload.js", "renderer/**/*"],
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "target": ["dmg", "zip"],
+      "extendInfo": {
+        "NSScreenCaptureUsageDescription": "OneShot needs Screen Recording access to take screenshots."
+      }
+    },
+    "fileAssociations": [
+      {
+        "ext": ["png", "jpg", "jpeg", "gif", "webp", "heic", "heif", "tif", "tiff", "bmp", "avif"],
+        "name": "Image",
+        "role": "Editor",
+        "rank": "Default"
+      }
+    ]
+  }
+}
