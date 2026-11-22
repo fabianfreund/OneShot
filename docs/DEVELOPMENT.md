@@ -18,7 +18,8 @@ Reset the welcome flow by deleting `~/Library/Application Support/OneShot/settin
 ```bash
 npm test        # unit tests (document model, history, perspective warp), node:test, no deps
 npm run smoke   # launches the real app twice (editor + capture overlay) and fails on renderer errors
-npm run check   # both
+npm run lint    # ESLint (eslint.config.mjs)
+npm run check   # lint + unit tests + smoke
 ```
 
 ### Debug hooks
@@ -59,7 +60,6 @@ npm run release:patch   # 0.1.0 → 0.1.1   (also :minor, :major)
 This runs the tests, bumps the version, commits `Release vX.Y.Z`, tags `vX.Y.Z` and pushes.
 The tag triggers [the Release workflow](../.github/workflows/release.yml), which builds macOS, Windows and Linux
 and attaches everything to a **draft** GitHub Release. Review it on GitHub, then publish it.
-Only published (non-draft, non-pre-release) releases are picked up by Appetizer.
 To bump without pushing, use `npm version patch` directly.
 
 ## Default image viewer
@@ -92,6 +92,7 @@ renderer/overlay.*      post-capture quick-access card
 renderer/pin.*          floating pinned screenshot
 renderer/launcher.*     floating capture bar
 renderer/onboarding.*   first-run welcome + permission
+renderer/tokens.css     design tokens shared by all pages
 scripts/                icon generator, smoke test, PNG encoder
 test/                   unit tests
 ```

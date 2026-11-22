@@ -35,7 +35,7 @@ On Windows and Linux use Ctrl for ⌘ and Alt for ⌥.
 npm install
 npm start                     # menu-bar app; first run shows the welcome + permission screen
 npm start -- ~/Desktop/x.png  # open an image directly
-npm run check                 # unit tests + end-to-end smoke test
+npm run check                 # lint + unit tests + end-to-end smoke test
 npm run dist:mac              # or dist:win, dist:linux, dist:all → dist/
 ```
 On macOS, dev builds get the Screen Recording permission through the terminal you ran `npm start` from. Relaunch after allowing it.

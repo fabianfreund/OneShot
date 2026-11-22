@@ -456,12 +456,12 @@ ipcMain.on('drag:file', (e, p) => {
 ipcMain.on('drag:data', (e, dataUrl, name) => {
   const dir = path.join(os.tmpdir(), 'OneShot');
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, name || 'OneShot.png');
+  const file = path.join(dir, path.basename(name || '') || 'OneShot.png'); // basename: never write outside dir
   fs.writeFileSync(file, Buffer.from(dataUrl.split(',')[1], 'base64'));
   e.sender.startDrag({ file, icon: nativeImage.createFromPath(file).resize({ width: 96 }) });
 });
 
-// ── Dev hooks (see README → Development) ─────────────────────────────────────
+// ── Dev hooks (see docs/DEVELOPMENT.md → Debug hooks) ────────────────────────
 // ONESHOT_DEBUG_SHOT=/path.png  screenshot the first window after load
 // ONESHOT_DEBUG_JS="..."        run this in the page first
 // ONESHOT_DEBUG_QUIT=1          quit after the screenshot
