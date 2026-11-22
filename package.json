@@ -43,7 +43,7 @@
       "output": "dist",
       "buildResources": "build"
     },
-    "files": ["main.js", "preload.js", "package.json", "renderer/**/*"],
+    "files": ["main.js", "preload.js", "image-types.js", "package.json", "renderer/**/*"],
     "publish": {
       "provider": "github",
       "releaseType": "draft"

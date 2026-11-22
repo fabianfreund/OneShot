@@ -12,7 +12,7 @@ export default [
   },
   // Electron main process + preload (CommonJS).
   {
-    files: ['main.js', 'preload.js'],
+    files: ['main.js', 'preload.js', 'image-types.js'],
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
   },
   // Renderer pages (ES modules in the browser).

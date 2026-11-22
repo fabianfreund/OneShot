@@ -107,6 +107,7 @@ After installing, set OneShot as the default app for images:
 
 ```
 main.js                 menu bar, shortcuts, capture, windows, IPC
+image-types.js          image extensions OneShot opens (kept in sync with package.json by a test)
 preload.js              safe bridge (window.oneshot)
 renderer/util.js        pure helpers (colors, clamp)
 renderer/lib.js         DOM + bridge helpers shared by the pages

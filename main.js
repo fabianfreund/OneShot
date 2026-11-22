@@ -9,10 +9,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const { execFile } = require('node:child_process');
 
-const pkg = require('./package.json');
+const { IMAGE_EXTS } = require('./image-types.js');
 
-// Single source of truth: the file associations declared for packaged builds.
-const IMAGE_EXT = new Set(pkg.build.fileAssociations.flatMap((a) => a.ext).map((e) => `.${e}`));
+const IMAGE_EXT = new Set(IMAGE_EXTS.map((e) => `.${e}`));
 const NATIVE_DECODE = new Set(['.heic', '.heif', '.tif', '.tiff']); // Chromium can't decode these, macOS can
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.bmp': 'image/bmp', '.avif': 'image/avif' };
 const SHORTCUTS = { area: 'Alt+Shift+4', window: 'Alt+Shift+5', screen: 'Alt+Shift+3' };
