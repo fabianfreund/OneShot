@@ -220,7 +220,7 @@ function openPin(file) {
 // ── Capture ──────────────────────────────────────────────────────────────────
 // Prototype: macOS `screencapture` gives us the native selection UI, window
 // picking, multi-display and Retina handling for free. Production: swap for a
-// ScreenCaptureKit helper (see RESEARCH.md) to get a custom crosshair/magnifier.
+// ScreenCaptureKit helper (see docs/RESEARCH.md) to get a custom crosshair/magnifier.
 function stamp() {
   const d = new Date(), z = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} at ${z(d.getHours())}.${z(d.getMinutes())}.${z(d.getSeconds())}`;
@@ -242,7 +242,7 @@ function capture(kind) {
 }
 
 // Windows/Linux prototype: grab the display under the cursor (area/window
-// selection needs a custom overlay — see RESEARCH.md).
+// selection needs a custom overlay — see docs/RESEARCH.md).
 async function captureFallback(file) {
   const d = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   const thumbnailSize = { width: Math.round(d.size.width * d.scaleFactor), height: Math.round(d.size.height * d.scaleFactor) };
