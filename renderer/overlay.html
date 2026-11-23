@@ -18,9 +18,14 @@
     }
     .card:active { cursor: grabbing; }
     .card.out { animation: out .24s cubic-bezier(.5,0,.8,.3) both; }
-    @keyframes in { from { transform: translateY(18px) scale(.94); opacity: 0; } }
-    @keyframes out { to { transform: translateX(-24px) scale(.96); opacity: 0; } }
-    #thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s var(--ease); }
+    /* In from the nearest screen edge, out toward the side it sits on. */
+    @keyframes in { from { transform: translateY(var(--in-y, 18px)) scale(.94); opacity: 0; } }
+    @keyframes out { to { transform: translateX(var(--out-x, -24px)) scale(.96); opacity: 0; } }
+    body.right { --out-x: 24px; }
+    body.top { --in-y: -18px; }
+    /* Only the image starts a drag, so a click on a button that moves a little still clicks. */
+    #thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s var(--ease); -webkit-user-drag: element; }
+    button, .bar { -webkit-user-drag: none; }
     .card:hover #thumb { transform: scale(1.02); }
 
     /* Floating glass, identical to #dock / .pop — only on hover */
@@ -48,6 +53,17 @@
     .card.copied #copy .ok { display: block; }
     .card.copied #copy .cp { display: none; }
     .sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line); }
+    body.small #copy { padding: 0; width: 32px; justify-content: center; }
+    body.small #copy span { display: none; }
+    body.small .sep { margin: 0 2px; }
+
+    /* Auto-copy confirmation, shown once as the card arrives */
+    #auto { position: absolute; left: 50%; top: 8px; height: 26px; padding: 0 10px 0 8px; border-radius: 13px; display: none; align-items: center; gap: 5px;
+      font-size: 11.5px; font-weight: 500; transform: translateX(-50%); animation: badge 2.2s var(--ease) .25s both; pointer-events: none; }
+    #auto svg { width: 13px; height: 13px; stroke-width: 2.6; }
+    body.copied #auto { display: flex; }
+    body.copied .card:hover #auto { opacity: 0; }
+    @keyframes badge { 0% { opacity: 0; transform: translateX(-50%) translateY(-6px); } 12%, 80% { opacity: 1; transform: translateX(-50%); } 100% { opacity: 0; } }
 
     /* Countdown: a hairline that drains along the bottom edge, hidden + paused on hover */
     .timer { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; transform-origin: left; background: rgba(255,255,255,.7);
@@ -62,15 +78,15 @@
   </style>
 </head>
 <body>
-  <div class="card" id="card" draggable="true">
-    <img id="thumb" alt="">
+  <div class="card" id="card">
+    <img id="thumb" alt="" draggable="true">
     <div class="timer"></div>
     <button id="close" class="hov glass" title="Dismiss  esc"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <span id="dims" class="hov glass"></span>
     <div class="bar hov glass">
       <button class="tb" id="copy" title="Copy  ⌘C">
         <svg class="cp" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg>
-        <svg class="ok" viewBox="0 0 24 24" style="stroke-width:2.6"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Copy
+        <svg class="ok" viewBox="0 0 24 24" style="stroke-width:2.6"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Copy</span>
       </button>
       <button class="tb" id="edit" title="Edit & annotate"><svg viewBox="0 0 24 24"><path d="M14.5 5.5l4 4L9 19H5v-4z"/><path d="M12.5 7.5l4 4"/></svg></button>
       <span class="sep"></span>
@@ -78,6 +94,7 @@
       <button class="tb" id="savecopy" title="Save a copy…"><svg viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14"/></svg></button>
       <button class="tb" id="reveal" title="Show in Finder"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></button>
     </div>
+    <span id="auto" class="glass"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Copied</span>
     <div class="done"><span class="glass"><svg viewBox="0 0 24 24" style="stroke-width:2.6"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Copied</span></div>
   </div>
   <script type="module" src="overlay.js"></script>

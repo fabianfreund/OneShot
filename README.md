@@ -13,6 +13,7 @@ Get the latest build from [Releases](https://github.com/fabianfreund/OneShot/rel
 
 ## Highlights
 - **Capture in one key:** area, window or full screen. A quick-access card slides in with Copy, Annotate, Pin, Save and drag-out.
+- **Your kind of preview:** pick the corner and size of the card, and copy every capture to the clipboard automatically.
 - **Annotate with good defaults:** tapered arrows, boxes, ellipses, text (plain, outline, pill), numbered counters, highlighter, pixelate.
 - **Beautify:** gradient backgrounds with padding, rounded corners, shadow and fixed aspect ratios.
 - **Photo tools too:** crop, perspective crop (straighten a photographed document), rotate and flip.

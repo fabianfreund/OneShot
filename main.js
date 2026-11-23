@@ -38,7 +38,19 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // Bump ONBOARDING_VERSION when the welcome flow changes enough that existing
 // users should see it once more.
 const ONBOARDING_VERSION = 2;
-const DEFAULTS = { onboardedVersion: 0, onboardingStep: 0, onboardingActive: false, captureDir: null };
+const DEFAULTS = {
+  onboardedVersion: 0, onboardingStep: 0, onboardingActive: false, captureDir: null,
+  autoCopy: false, previewCorner: 'bottom-left', previewSize: 'medium',
+};
+// Post-capture preview card. Width in px; the height follows the screenshot's shape.
+const PREVIEW_WIDTH = { small: 240, medium: 300, large: 380 };
+const PREVIEW_CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+// Settings the renderer may change, each with its validator.
+const SETTABLE = {
+  autoCopy: (v) => typeof v === 'boolean',
+  previewCorner: (v) => PREVIEW_CORNERS.includes(v),
+  previewSize: (v) => v in PREVIEW_WIDTH,
+};
 let settings = { ...DEFAULTS };
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 function loadSettings() {
@@ -215,26 +227,33 @@ function openLauncher() {
 }
 const closeLauncher = () => { if (launcher && !launcher.isDestroyed()) launcher.close(); };
 
-function showOverlay(file) {
+function showOverlay(file, { copied = false } = {}) {
   const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   // Card takes the screenshot's shape (clamped), 20px of window margin for the shadow.
   const sz = nativeImage.createFromPath(file).getSize();
-  const cw = 300, ch = Math.round(clamp(sz.width ? (cw * sz.height) / sz.width : 190, 150, 260));
+  const size = PREVIEW_WIDTH[settings.previewSize] ? settings.previewSize : 'medium';
+  const corner = PREVIEW_CORNERS.includes(settings.previewCorner) ? settings.previewCorner : 'bottom-left';
+  const cw = PREVIEW_WIDTH[size];
+  const ch = Math.round(clamp(sz.width ? (cw * sz.height) / sz.width : cw * 0.63, cw * 0.5, cw * 0.87));
   const W = cw + 20, H = ch + 20, M = 6;
+  const [vert, side] = corner.split('-');
+  // New cards stack away from the corner, over the ones already showing there.
   for (let i = overlays.length - 1; i >= 0; i--) if (overlays[i].isDestroyed()) overlays.splice(i, 1);
-  const stacked = overlays.reduce((sum, w) => sum + w.getBounds().height - 10, 0);
-  const y = workArea.y + workArea.height - H - M - stacked;
+  const stacked = overlays.filter((w) => w.oneshotCorner === corner).reduce((sum, w) => sum + w.getBounds().height - 10, 0);
+  const x = side === 'left' ? workArea.x + M : workArea.x + workArea.width - W - M;
+  const y = vert === 'top' ? workArea.y + M + stacked : workArea.y + workArea.height - H - M - stacked;
   const win = new BrowserWindow({
-    x: workArea.x + M, y, width: W, height: H,
+    x, y, width: W, height: H,
     frame: false, transparent: true, resizable: false, alwaysOnTop: true, skipTaskbar: true,
     hasShadow: false, fullscreenable: false, minimizable: false, maximizable: false,
     acceptFirstMouse: true, show: false, backgroundColor: '#00000000',
     webPreferences: { preload: PRELOAD },
   });
   win.oneshotKind = 'overlay';
+  win.oneshotCorner = corner;
   win.setAlwaysOnTop(true, 'screen-saver');
   if (!IS_WIN) win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  win.loadFile(R('overlay.html'), { query: { file } });
+  win.loadFile(R('overlay.html'), { query: { file, side, vert, size, copied: copied ? '1' : '' } });
   win.once('ready-to-show', () => win.showInactive());
   overlays.push(win);
   devHooks(win);
@@ -282,7 +301,7 @@ function capture(kind) {
   const done = () => {
     closeLauncher();
     if (home && !home.isDestroyed() && hidden.includes(home)) { home.showInactive(); refreshHome(); }
-    showOverlay(file);
+    showOverlay(file, { copied: settings.autoCopy && copyImageFile(file) });
   };
   const delay = hidden.length ? 200 : 0;
   if (!IS_MAC) return void setTimeout(() => captureFallback(file).then(done)
@@ -422,13 +441,38 @@ async function openDialog() {
 const appState = () => ({
   platform: process.platform, packaged: app.isPackaged, version: app.getVersion(), screen: screenAccess(),
   openAtLogin: openAtLogin(), shortcuts: SHORTCUTS, captureDir: captureDir(), home: os.homedir(),
+  autoCopy: settings.autoCopy, previewCorner: settings.previewCorner, previewSize: settings.previewSize,
 });
 const refreshHome = () => { if (home && !home.isDestroyed()) home.webContents.send('home:refresh'); };
 ipcMain.handle('app:state', appState);
 ipcMain.on('settings:set', (_e, key, value) => {
   if (key === 'openAtLogin') setOpenAtLogin(value);
+  else if (SETTABLE[key]?.(value)) saveSettings({ [key]: value });
   updateTrayMenu();
 });
+// "Try it" in Home: show the preview card with the newest capture (or a sample).
+ipcMain.on('preview:try', async () => {
+  let file = null;
+  try {
+    const names = (await fs.promises.readdir(captureDir())).filter((n) => isImage(n) && !n.startsWith('.'));
+    const stats = await Promise.all(names.map(async (n) => ({ p: path.join(captureDir(), n), t: (await fs.promises.stat(path.join(captureDir(), n))).mtimeMs })));
+    file = stats.sort((a, b) => b.t - a.t)[0]?.p || null;
+  } catch { /* no captures folder yet */ }
+  showOverlay(file || samplePreview());
+});
+// Soft gradient used as the "Try it" image before the first capture.
+function samplePreview() {
+  const file = path.join(os.tmpdir(), 'OneShot', 'OneShot sample.png');
+  if (fs.existsSync(file)) return file;
+  const w = 640, h = 400, buf = Buffer.alloc(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const t = (x / w + y / h) / 2, i = (y * w + x) * 4;
+    buf[i] = Math.round(255 - 120 * t); buf[i + 1] = Math.round(92 + 40 * t); buf[i + 2] = Math.round(140 + 115 * t); buf[i + 3] = 255; // BGRA
+  }
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, nativeImage.createFromBitmap(buf, { width: w, height: h }).toPNG());
+  return file;
+}
 ipcMain.on('app:quit', () => app.quit());
 
 // Newest captures first, with small thumbnails for Home.
@@ -501,7 +545,15 @@ ipcMain.handle('image:siblings', async (_e, p) => {
 });
 
 ipcMain.handle('clipboard:image', (_e, buf) => { clipboard.writeImage(nativeImage.createFromBuffer(Buffer.from(buf))); });
-ipcMain.handle('clipboard:file', (_e, p) => { clipboard.writeImage(nativeImage.createFromPath(p)); });
+ipcMain.handle('clipboard:file', (_e, p) => copyImageFile(p));
+// Puts an image file on the clipboard; false if it can't be decoded.
+function copyImageFile(p) {
+  let img = nativeImage.createFromPath(p);
+  if (img.isEmpty()) { try { img = nativeImage.createFromBuffer(fs.readFileSync(p)); } catch { /* unreadable */ } }
+  if (img.isEmpty()) { console.error('copy failed: cannot decode', p); return false; }
+  clipboard.writeImage(img);
+  return true;
+}
 
 // Suggests `name` next to the original file.
 ipcMain.handle('file:save-as', async (e, buf, name, src) => {

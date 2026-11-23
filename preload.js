@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('oneshot', {
     launcher: () => ipcRenderer.send('home:launcher'),
     fixPermission: () => ipcRenderer.send('home:permission'),
     tour: () => ipcRenderer.send('home:tour'),
+    tryPreview: () => ipcRenderer.send('preview:try'),
     quit: () => ipcRenderer.send('app:quit'),
     onRefresh: (cb) => ipcRenderer.on('home:refresh', () => cb()),
   },

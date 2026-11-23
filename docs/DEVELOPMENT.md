@@ -13,6 +13,8 @@ macOS needs a relaunch after the permission is granted; the welcome window reope
 After that, opening OneShot yourself (Finder, Dock, Start menu, or *Home & Settings…* / ⌘, in the menu bar) shows the **Home** window: capture buttons, recent captures and settings.
 Closing it leaves OneShot running in the menu bar (system tray on Windows/Linux). A launch at login starts silently.
 In dev, macOS grants the permission to the terminal you ran `npm start` from; relaunch after allowing it.
+Settings live in `settings.json` in the user-data folder: `captureDir`, `autoCopy`, `previewCorner` (`top-left` … `bottom-right`), `previewSize` (`small`, `medium`, `large`).
+
 Reset the welcome flow by deleting `~/Library/Application Support/OneShot/settings.json`, or use *Welcome tour → Show* in Home.
 Bump `ONBOARDING_VERSION` in `main.js` when the welcome flow changes enough that existing users should see it again.
 
