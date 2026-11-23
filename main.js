@@ -2,7 +2,7 @@
 // Menu-bar app: global capture shortcuts → quick-access overlay → editor/viewer windows.
 const {
   app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu,
-  nativeImage, clipboard, dialog, screen, shell, systemPreferences, desktopCapturer,
+  nativeImage, clipboard, ClipboardItem, dialog, screen, shell, systemPreferences, desktopCapturer,
 } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -298,10 +298,10 @@ function capture(kind) {
   const hidden = [launcher, home].filter((w) => w && !w.isDestroyed() && w.isVisible());
   hidden.forEach((w) => w.hide());
   const restore = () => hidden.forEach((w) => { if (!w.isDestroyed()) w.show(); });
-  const done = () => {
+  const done = async () => {
     closeLauncher();
     if (home && !home.isDestroyed() && hidden.includes(home)) { home.showInactive(); refreshHome(); }
-    showOverlay(file, { copied: settings.autoCopy && copyImageFile(file) });
+    showOverlay(file, { copied: settings.autoCopy && await copyImageFile(file) });
   };
   const delay = hidden.length ? 200 : 0;
   if (!IS_MAC) return void setTimeout(() => captureFallback(file).then(done)
@@ -544,15 +544,25 @@ ipcMain.handle('image:siblings', async (_e, p) => {
     .map((n) => path.join(dir, n));
 });
 
-ipcMain.handle('clipboard:image', (_e, buf) => { clipboard.writeImage(nativeImage.createFromBuffer(Buffer.from(buf))); });
+ipcMain.handle('clipboard:image', (_e, buf) => copyImage(nativeImage.createFromBuffer(Buffer.from(buf))));
 ipcMain.handle('clipboard:file', (_e, p) => copyImageFile(p));
-// Puts an image file on the clipboard; false if it can't be decoded.
+// Electron 45 replaced clipboard.writeImage with the async W3C-style write(); keep the
+// old call as a fallback for older runtimes. Never throws: false means nothing was copied.
+async function copyImage(img) {
+  if (img.isEmpty()) return false;
+  try {
+    if (typeof clipboard.write === 'function' && ClipboardItem) {
+      await clipboard.write([new ClipboardItem({ 'image/png': new Blob([img.toPNG()], { type: 'image/png' }) })]);
+    } else clipboard.writeImage(img);
+    return true;
+  } catch (err) { console.error('copy failed', err); return false; }
+}
+// Puts an image file on the clipboard.
 function copyImageFile(p) {
   let img = nativeImage.createFromPath(p);
   if (img.isEmpty()) { try { img = nativeImage.createFromBuffer(fs.readFileSync(p)); } catch { /* unreadable */ } }
-  if (img.isEmpty()) { console.error('copy failed: cannot decode', p); return false; }
-  clipboard.writeImage(img);
-  return true;
+  if (img.isEmpty()) console.error('copy failed: cannot decode', p);
+  return copyImage(img);
 }
 
 // Suggests `name` next to the original file.

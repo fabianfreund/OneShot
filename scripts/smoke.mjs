@@ -60,11 +60,18 @@ const HOME_JS = `(async () => {
   const q = (s) => document.querySelector(s);
   if (!q('.cap kbd')) throw new Error('capture shortcuts missing');
   if (!q('#dir').textContent) throw new Error('capture folder missing');
+  if (document.querySelectorAll('.slot').length !== 4 || !q('#size .on')) throw new Error('preview settings missing');
+})()`;
+
+// Copies the capture for real (Electron's clipboard API changed in v45 and broke this silently).
+const OVERLAY_JS = `(async () => {
+  const file = new URLSearchParams(location.search).get('file');
+  if (!(await window.oneshot.copyFile(file))) throw new Error('copy to clipboard failed');
 })()`;
 
 const results = [
   await run('editor', [img], { ONESHOT_DEBUG_JS: EDITOR_JS }),
-  await run('overlay', [], { ONESHOT_DEBUG_OVERLAY: img }),
+  await run('overlay', [], { ONESHOT_DEBUG_OVERLAY: img, ONESHOT_DEBUG_JS: OVERLAY_JS }),
   await run('onboarding', [], { ONESHOT_DEBUG_WINDOW: 'onboarding', ONESHOT_DEBUG_JS: ONBOARDING_JS }),
   await run('home', [], { ONESHOT_DEBUG_WINDOW: 'home', ONESHOT_DEBUG_JS: HOME_JS }),
 ];

@@ -75,8 +75,7 @@ const stem = () => S.name.replace(/\.[^.]+$/, '');
 
 export async function copyOut() {
   if (!S.base) return;
-  await api.copyImage(await exportBuffer());
-  toast('Copied to clipboard');
+  toast((await api.copyImage(await exportBuffer())) ? 'Copied to clipboard' : 'Could not copy');
 }
 
 export async function saveOut() {
