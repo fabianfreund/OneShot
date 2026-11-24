@@ -37,6 +37,8 @@ Dev builds only. They use an isolated profile in the temp folder, so they never 
 | `ONESHOT_DEBUG_JS="…"` | run this JS in that window before the screenshot (a throw is reported) |
 | `ONESHOT_DEBUG_QUIT=1` | quit after the screenshot |
 | `ONESHOT_DEBUG_OVERLAY=/img.png` | open the post-capture overlay for an image |
+| `ONESHOT_DEBUG_SELECT=/img.png` | open the Windows/Linux area selector over an image |
+| `ONESHOT_DEBUG_FALLBACK=1` | use the Windows/Linux capture path (selector) on a Mac |
 | `ONESHOT_DEBUG_WINDOW=home` | open `home`, `onboarding` or `launcher` directly |
 
 ## Build

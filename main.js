@@ -105,6 +105,7 @@ app.whenReady().then(() => {
   const files = [...pending, ...argvFiles];
   if (files.length) files.forEach((f) => openEditor(f));
   else if (process.env.ONESHOT_DEBUG_OVERLAY && !app.isPackaged) showOverlay(process.env.ONESHOT_DEBUG_OVERLAY);
+  else if (process.env.ONESHOT_DEBUG_SELECT && !app.isPackaged) debugSelect(process.env.ONESHOT_DEBUG_SELECT);
   else if (process.env.ONESHOT_DEBUG_WINDOW && !app.isPackaged) ({ home: openHome, onboarding: openOnboarding, launcher: openLauncher })[process.env.ONESHOT_DEBUG_WINDOW]?.();
   else if (needsOnboarding()) openOnboarding();
   else if (!launchedAtLogin()) openHome();
@@ -289,7 +290,11 @@ function stamp() {
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} at ${z(d.getHours())}.${z(d.getMinutes())}.${z(d.getSeconds())}`;
 }
 
+// Dev only: use the Windows/Linux capture path on a Mac.
+const useFallback = () => !IS_MAC || (!app.isPackaged && !!process.env.ONESHOT_DEBUG_FALLBACK);
+
 function capture(kind) {
+  if (selecting) return; // already picking an area
   if (screenAccess() !== 'granted') return openOnboarding(1); // explain + fix permission first
   fs.mkdirSync(captureDir(), { recursive: true });
   const file = path.join(captureDir(), `OneShot ${stamp()}.png`);
@@ -304,23 +309,85 @@ function capture(kind) {
     showOverlay(file, { copied: settings.autoCopy && await copyImageFile(file) });
   };
   const delay = hidden.length ? 200 : 0;
-  if (!IS_MAC) return void setTimeout(() => captureFallback(file).then(done)
-    .catch((err) => { console.error('capture failed', err); restore(); }), delay);
+  if (useFallback()) {
+    const run = kind === 'screen' ? captureFallback(file).then(done) : captureSelect(file, done, restore);
+    return void setTimeout(() => run.catch((err) => { console.error('capture failed', err); restore(); }), delay);
+  }
   setTimeout(() => execFile('/usr/sbin/screencapture', [...args, file], (err) => {
     if (fs.existsSync(file)) done();
     else { restore(); if (err) console.error('capture failed', err); }
   }), delay);
 }
 
-// Windows/Linux prototype: grab the display under the cursor (area/window
-// selection needs a custom overlay — see docs/RESEARCH.md).
-async function captureFallback(file) {
-  const d = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+// Windows/Linux: grab the display under the cursor at full resolution.
+async function grabDisplay(d) {
   const thumbnailSize = { width: Math.round(d.size.width * d.scaleFactor), height: Math.round(d.size.height * d.scaleFactor) };
   const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize });
   const src = sources.find((s) => s.display_id === String(d.id)) || sources[0];
-  if (!src) throw new Error('no screen source');
-  await fs.promises.writeFile(file, src.thumbnail.toPNG());
+  if (!src || src.thumbnail.isEmpty()) throw new Error('no screen source');
+  return src.thumbnail;
+}
+const cursorDisplay = () => screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+async function captureFallback(file) {
+  await fs.promises.writeFile(file, (await grabDisplay(cursorDisplay())).toPNG());
+}
+
+// Windows/Linux area capture: freeze the display, cover it with select.html,
+// crop to the rectangle the user drags. Area and window both use this for now.
+let selecting = null; // { win, img, bounds, file, done, restore }
+async function captureSelect(file, done, restore) {
+  const d = cursorDisplay();
+  openSelector(await grabDisplay(d), d.bounds, file, done, restore);
+}
+function openSelector(img, bounds, file, done, restore) {
+  const preview = path.join(os.tmpdir(), 'OneShot', 'selecting.jpg');
+  fs.mkdirSync(path.dirname(preview), { recursive: true });
+  fs.writeFileSync(preview, img.toJPEG(90)); // backdrop only; the crop uses the lossless image
+  const win = new BrowserWindow({
+    ...bounds, frame: false, resizable: false, movable: false, minimizable: false, maximizable: false, fullscreenable: false,
+    alwaysOnTop: true, skipTaskbar: true, hasShadow: false, enableLargerThanScreen: true, acceptFirstMouse: true,
+    show: false, backgroundColor: '#000000', webPreferences: { preload: PRELOAD },
+  });
+  win.oneshotKind = 'select';
+  win.setAlwaysOnTop(true, 'screen-saver');
+  win.setMenuBarVisibility(false);
+  win.loadFile(R('select.html'), { query: { file: preview } });
+  win.once('ready-to-show', () => { win.setBounds(bounds); win.show(); win.focus(); app.focus({ steal: true }); });
+  selecting = { win, img, bounds, file, done, restore };
+  // Esc must work even if the window didn't get keyboard focus.
+  globalShortcut.register('Escape', cancelSelect);
+  win.on('closed', () => {
+    globalShortcut.unregister('Escape');
+    if (selecting?.win === win) { const s = selecting; selecting = null; s.restore(); }
+  });
+  devHooks(win);
+}
+function cancelSelect() { if (selecting && !selecting.win.isDestroyed()) selecting.win.close(); }
+ipcMain.on('select:cancel', cancelSelect);
+ipcMain.on('select:done', async (e, r) => {
+  const s = selecting;
+  if (!s || BrowserWindow.fromWebContents(e.sender) !== s.win) return;
+  selecting = null;
+  s.win.close();
+  try {
+    await fs.promises.writeFile(s.file, cropToSelection(s.img, s.bounds, r).toPNG());
+    s.done();
+  } catch (err) { console.error('capture failed', err); s.restore(); }
+});
+// r is in window (DIP) coordinates; the image is in device pixels.
+function cropToSelection(img, bounds, r) {
+  const { width, height } = img.getSize();
+  const kx = width / bounds.width, ky = height / bounds.height;
+  const x = clamp(Math.round(r.x * kx), 0, width - 1), y = clamp(Math.round(r.y * ky), 0, height - 1);
+  const w = clamp(Math.round(r.w * kx), 1, width - x), h = clamp(Math.round(r.h * ky), 1, height - y);
+  return x === 0 && y === 0 && w === width && h === height ? img : img.crop({ x, y, width: w, height: h });
+}
+// ONESHOT_DEBUG_SELECT=/img.png: the selector over that image; the crop opens the preview card.
+function debugSelect(src) {
+  const img = nativeImage.createFromPath(src);
+  const d = cursorDisplay();
+  const file = path.join(os.tmpdir(), 'OneShot', 'OneShot debug selection.png');
+  openSelector(img, d.bounds, file, () => showOverlay(file), () => {});
 }
 
 function registerShortcuts() {
@@ -629,12 +696,13 @@ function devHooks(win) {
     if (e.level === 'error' || e.level === 'warning') console.log(`[renderer:${e.level}] ${e.message} (${e.sourceId}:${e.lineNumber})`);
   });
   const shot = process.env.ONESHOT_DEBUG_SHOT;
-  if (!shot || !['editor', 'launcher', 'onboarding', 'overlay', 'home'].includes(win.oneshotKind)) return;
+  if (!shot || !['editor', 'launcher', 'onboarding', 'overlay', 'home', 'select'].includes(win.oneshotKind)) return;
   win.webContents.once('did-finish-load', () => setTimeout(async () => {
     if (process.env.ONESHOT_DEBUG_JS) {
       try { await win.webContents.executeJavaScript(process.env.ONESHOT_DEBUG_JS); } catch (err) { console.log('debug js error', err); }
       await new Promise((r) => setTimeout(r, 900));
     }
+    if (win.isDestroyed()) { if (process.env.ONESHOT_DEBUG_QUIT) app.quit(); return; } // the debug JS closed it
     const img = await win.webContents.capturePage();
     fs.writeFileSync(shot, img.toPNG());
     console.log('debug shot written', shot);

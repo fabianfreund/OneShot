@@ -23,3 +23,15 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      # Launches the real app (no display on the Linux runner, so macOS and Windows only).
+      - if: runner.os != 'Linux'
+        run: npm run smoke
+      # The overlay smoke run copied a 400×300 image: Windows apps must be able to paste it.
+      - if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms
+          Write-Host "formats: $([System.Windows.Forms.Clipboard]::GetDataObject().GetFormats() -join ', ')"
+          $img = [System.Windows.Forms.Clipboard]::GetImage()
+          if (-not $img) { Write-Error 'no pasteable image on the clipboard'; exit 1 }
+          Write-Host "clipboard image: $($img.Width)x$($img.Height)"

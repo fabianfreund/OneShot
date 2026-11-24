@@ -6,7 +6,7 @@
 
 ![OneShot: an annotated capture on a gradient background in the editor](docs/assets/screenshot-editor.png)
 
-> **Status:** early prototype (v0.1.x). Built and tested on macOS. Windows and Linux builds work with full-screen capture only (area and window selection are macOS-only for now).
+> **Status:** early prototype (v0.x). Built and tested on macOS. On Windows and Linux, area and window capture both open a drag-to-select overlay on the screen under the cursor (picking a window by clicking it is macOS-only for now).
 
 ## Download
 Get the latest build from [Releases](https://github.com/fabianfreund/OneShot/releases/latest): a signed and notarized `.dmg` for macOS (Apple Silicon or Intel), an `.exe` installer for Windows, and an `.AppImage` / `.deb` for Linux.

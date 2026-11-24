@@ -69,9 +69,19 @@ const OVERLAY_JS = `(async () => {
   if (!(await window.oneshot.copyFile(file))) throw new Error('copy to clipboard failed');
 })()`;
 
+// Drags a selection without letting go, so the window stays up for the screenshot.
+const SELECT_JS = `(async () => {
+  const ev = (t, x, y) => window.dispatchEvent(new PointerEvent(t, { clientX: x, clientY: y, button: 0, pointerId: 1, bubbles: true }));
+  await new Promise((r) => setTimeout(r, 300));
+  ev('pointerdown', 40, 30); ev('pointermove', 240, 180);
+  if (!document.body.classList.contains('dragging')) throw new Error('selection did not start');
+  if (!/^\\d+ × \\d+$/.test(document.querySelector('#size').textContent)) throw new Error('selection size missing');
+})()`;
+
 const results = [
   await run('editor', [img], { ONESHOT_DEBUG_JS: EDITOR_JS }),
   await run('overlay', [], { ONESHOT_DEBUG_OVERLAY: img, ONESHOT_DEBUG_JS: OVERLAY_JS }),
+  await run('select', [], { ONESHOT_DEBUG_SELECT: img, ONESHOT_DEBUG_JS: SELECT_JS }),
   await run('onboarding', [], { ONESHOT_DEBUG_WINDOW: 'onboarding', ONESHOT_DEBUG_JS: ONBOARDING_JS }),
   await run('home', [], { ONESHOT_DEBUG_WINDOW: 'home', ONESHOT_DEBUG_JS: HOME_JS }),
 ];

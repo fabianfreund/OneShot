@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob:; style-src 'self' 'unsafe-inline'">
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    /* Area selection for Windows/Linux: a frozen screenshot of the display, drag to pick the part to keep. */
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor: crosshair; user-select: none;
+      font: 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif; color: #fff; }
+    #shot { position: fixed; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+    #dim { position: fixed; inset: 0; background: rgba(0,0,0,.38); pointer-events: none; }
+    body.dragging #dim { display: none; }
+
+    /* The selection is a clear hole: its huge shadow dims everything around it. */
+    #sel { position: fixed; display: none; pointer-events: none; outline: 1px solid rgba(255,255,255,.95);
+      box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 0 0 100vmax rgba(0,0,0,.42); }
+    body.dragging #sel { display: block; }
+    #sel i { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.3); }
+    #sel i:nth-child(1) { left: -4px; top: -4px; } #sel i:nth-child(2) { right: -4px; top: -4px; }
+    #sel i:nth-child(3) { left: -4px; bottom: -4px; } #sel i:nth-child(4) { right: -4px; bottom: -4px; }
+
+    /* Crosshair guides before the drag starts */
+    .guide { position: fixed; background: rgba(255,255,255,.55); pointer-events: none; box-shadow: 0 0 0 .5px rgba(0,0,0,.25); }
+    #gx { left: 0; right: 0; height: 1px; }
+    #gy { top: 0; bottom: 0; width: 1px; }
+    body.dragging .guide, body.idle .guide { display: none; }
+
+    .tag { position: fixed; height: 22px; padding: 0 8px; border-radius: 6px; display: flex; align-items: center; pointer-events: none;
+      background: rgba(20,20,22,.78); font-variant-numeric: tabular-nums; font-weight: 500; white-space: nowrap; }
+    #size { display: none; }
+    body.dragging #size { display: flex; }
+
+    #hint { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); height: 34px; padding: 0 14px; border-radius: 17px;
+      display: flex; align-items: center; gap: 10px; pointer-events: none; font-size: 12.5px; font-weight: 500;
+      background: rgba(28,28,30,.72); backdrop-filter: blur(20px); box-shadow: 0 8px 24px rgba(0,0,0,.3), 0 0 0 .5px rgba(255,255,255,.12);
+      animation: hint .35s cubic-bezier(.2,1.1,.35,1) both; transition: opacity .2s; }
+    #hint span { opacity: .6; }
+    kbd { height: 20px; min-width: 20px; padding: 0 6px; border-radius: 5px; display: inline-grid; place-items: center; font: 600 11px/1 inherit;
+      background: rgba(255,255,255,.14); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.2); }
+    body.dragging #hint { opacity: 0; }
+    @keyframes hint { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } }
+  </style>
+</head>
+<body class="idle">
+  <img id="shot" alt="">
+  <div id="dim"></div>
+  <div class="guide" id="gx"></div>
+  <div class="guide" id="gy"></div>
+  <div id="sel"><i></i><i></i><i></i><i></i></div>
+  <div class="tag" id="size"></div>
+  <div id="hint">Drag to capture <span>·</span> Click for full screen <span>·</span> <kbd>Esc</kbd> to cancel</div>
+  <script type="module" src="select.js"></script>
+</body>
+</html>

@@ -35,6 +35,10 @@ contextBridge.exposeInMainWorld('oneshot', {
     quit: () => ipcRenderer.send('app:quit'),
     onRefresh: (cb) => ipcRenderer.on('home:refresh', () => cb()),
   },
+  select: {
+    done: (rect) => ipcRenderer.send('select:done', rect),
+    cancel: () => ipcRenderer.send('select:cancel'),
+  },
   onboarding: {
     state: () => ipcRenderer.invoke('onboarding:state'),
     requestScreen: () => ipcRenderer.invoke('onboarding:request-screen'),
