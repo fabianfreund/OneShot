@@ -4,6 +4,7 @@ export const svg = (d) => `<svg viewBox="0 0 24 24">${d}</svg>`;
 export const ICONS = {
   select: '<path d="M6 3.5l12.5 7.3-5.6 1.5-2.7 5.5z"/>',
   arrow: '<path d="M5 19L18 6M9.5 5.5H18.5V14.5"/>',
+  line: '<path d="M5 19L19 5"/>',
   rect: '<rect x="4" y="5.5" width="16" height="13" rx="2.5"/>',
   ellipse: '<ellipse cx="12" cy="12" rx="8.5" ry="6.5"/>',
   text: '<path d="M5.5 7V5h13v2M12 5v14M9 19h6"/>',

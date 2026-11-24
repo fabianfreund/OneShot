@@ -22,7 +22,7 @@ fs.writeFileSync(img, encodePNG(400, 300, rgba));
 const EDITOR_JS = `(async () => {
   const q = (s) => document.querySelector(s), errs = [];
   q('#edit-toggle').click();
-  if (document.querySelectorAll('#tools .tb').length !== 10) errs.push('tool dock not built');
+  if (document.querySelectorAll('#tools .tb').length !== 11) errs.push('tool dock not built');
   q('.swatch').click();          // background on → commit
   q('#rot-r').click();           // destructive op → new base
   if (q('#undo').disabled) errs.push('undo not enabled after edits');

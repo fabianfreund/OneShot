@@ -30,6 +30,12 @@ test('annotation sizes grow with the image and with the S/M/L setting', () => {
   assert.equal(sizeFor('stroke', 0, 10, 10), 2 * 0.75); // floor for tiny images
 });
 
+test('moveAnn moves both endpoints of a line', () => {
+  const line = { type: 'line', x1: 1, y1: 1, x2: 4, y2: 9 };
+  moveAnn(line, -1, 3);
+  assert.deepEqual(line, { type: 'line', x1: 0, y1: 4, x2: 3, y2: 12 });
+});
+
 test('moveAnn moves both arrow endpoints or the box origin', () => {
   const arrow = { type: 'arrow', x1: 0, y1: 0, x2: 5, y2: 5 };
   moveAnn(arrow, 2, -1);

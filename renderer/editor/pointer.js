@@ -1,6 +1,6 @@
 // Mouse/pen interaction on the canvas: drawing, selecting, moving, resizing, crop and perspective handles.
 import { clamp } from '../util.js';
-import { HIGHLIGHT_COLOR, nextCounter, norm } from './model.js';
+import { HIGHLIGHT_COLOR, SEGMENT_TYPES, nextCounter, norm } from './model.js';
 import { S, view, canvas, sz, annsChanged } from './state.js';
 import { cropHandles, handles, insideRect, nearest, topHit } from './draw.js';
 import { requestRender, toImg } from './view.js';
@@ -47,13 +47,13 @@ function beginDrag(p) {
     return null;
   }
   if (t === 'text') { startText(null, p); return null; }
-  if (t === 'arrow') S.draft = { type: 'arrow', x1: p.x, y1: p.y, x2: p.x, y2: p.y, color: S.color, w: sz('stroke') };
+  if (SEGMENT_TYPES.has(t)) S.draft = { type: t, x1: p.x, y1: p.y, x2: p.x, y2: p.y, color: S.color, w: sz('stroke') };
   else S.draft = { type: t, x: p.x, y: p.y, w: 0, h: 0, color: t === 'highlight' ? HIGHLIGHT_COLOR : S.color, sw: sz('stroke') };
   return { kind: 'draft', start: p };
 }
 
 function updateDraft(d, p, shift) {
-  if (d.type === 'arrow') {
+  if (SEGMENT_TYPES.has(d.type)) {
     let x = p.x, y = p.y;
     if (shift) { // snap to 15°
       const step = Math.PI / 12, ang = Math.round(Math.atan2(y - d.y1, x - d.x1) / step) * step;
@@ -68,7 +68,7 @@ function updateDraft(d, p, shift) {
 }
 
 function resizeAnn(a, h, orig, p) {
-  if (a.type === 'arrow') { if (h === 'p1') { a.x1 = p.x; a.y1 = p.y; } else { a.x2 = p.x; a.y2 = p.y; } return; }
+  if (SEGMENT_TYPES.has(a.type)) { if (h === 'p1') { a.x1 = p.x; a.y1 = p.y; } else { a.x2 = p.x; a.y2 = p.y; } return; }
   const o = norm(orig);
   let x1 = o.x, y1 = o.y, x2 = o.x + o.w, y2 = o.y + o.h;
   if (h.includes('w')) x1 = p.x;
@@ -126,7 +126,7 @@ canvas.addEventListener('pointermove', (e) => {
     case 'draft': updateDraft(S.draft, p, e.shiftKey); break;
     case 'move': {
       const dx = p.x - drag.start.x, dy = p.y - drag.start.y, o = drag.orig;
-      if (o.type === 'arrow') Object.assign(drag.a, { x1: o.x1 + dx, y1: o.y1 + dy, x2: o.x2 + dx, y2: o.y2 + dy });
+      if (SEGMENT_TYPES.has(o.type)) Object.assign(drag.a, { x1: o.x1 + dx, y1: o.y1 + dy, x2: o.x2 + dx, y2: o.y2 + dy });
       else Object.assign(drag.a, { x: o.x + dx, y: o.y + dy });
       break;
     }
@@ -142,10 +142,10 @@ canvas.addEventListener('pointerup', () => {
   const k = drag.kind; drag = null;
   if (k === 'draft') {
     const d = S.draft; S.draft = null;
-    const big = d.type === 'arrow' ? Math.hypot(d.x2 - d.x1, d.y2 - d.y1) > 4 / view.scale
+    const big = SEGMENT_TYPES.has(d.type) ? Math.hypot(d.x2 - d.x1, d.y2 - d.y1) > 4 / view.scale
       : Math.abs(d.w) > 3 / view.scale && Math.abs(d.h) > 3 / view.scale;
     if (big) {
-      if (d.type !== 'arrow') Object.assign(d, norm(d));
+      if (!SEGMENT_TYPES.has(d.type)) Object.assign(d, norm(d));
       S.anns.push(d); select(d); commit();
     }
   } else if ((k === 'move' || k === 'handle') && annsChanged()) {

@@ -1,7 +1,7 @@
 // Painting the document (backdrop, image, annotations), the edit overlay
 // (selection, crop, perspective), and hit testing.
 import { clamp, contrast, hexA } from '../util.js';
-import { BACKDROPS, BOX_TYPES, norm } from './model.js';
+import { BACKDROPS, BOX_TYPES, SEGMENT_TYPES, norm } from './model.js';
 import { S, view, isWarpTool } from './state.js';
 import { setHud } from './ui.js';
 
@@ -84,6 +84,14 @@ function drawArrow(c, a, scale) {
   c.restore();
 }
 
+function drawLine(c, a, scale) {
+  c.save();
+  c.shadowColor = 'rgba(0,0,0,.28)'; c.shadowBlur = a.w * 1.2 * scale; c.shadowOffsetY = a.w * 0.25 * scale;
+  c.strokeStyle = a.color; c.lineWidth = a.w; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(a.x1, a.y1); c.lineTo(a.x2, a.y2); c.stroke();
+  c.restore();
+}
+
 function drawText(c, a, scale) {
   const m = textMetrics(a);
   c.save(); c.font = textFont(a.fs); c.textBaseline = 'middle';
@@ -107,6 +115,7 @@ function drawText(c, a, scale) {
 export function drawAnn(c, a, scale) {
   switch (a.type) {
     case 'arrow': drawArrow(c, a, scale); break;
+    case 'line': drawLine(c, a, scale); break;
     case 'rect': case 'ellipse': {
       const b = norm(a);
       c.save();
@@ -151,14 +160,14 @@ export function drawAnn(c, a, scale) {
 // ── Geometry & hit testing ───────────────────────────────────────────────────
 export function bbox(a) {
   switch (a.type) {
-    case 'arrow': return { x: Math.min(a.x1, a.x2), y: Math.min(a.y1, a.y2), w: Math.abs(a.x2 - a.x1), h: Math.abs(a.y2 - a.y1) };
+    case 'arrow': case 'line': return { x: Math.min(a.x1, a.x2), y: Math.min(a.y1, a.y2), w: Math.abs(a.x2 - a.x1), h: Math.abs(a.y2 - a.y1) };
     case 'counter': return { x: a.x - a.r, y: a.y - a.r, w: a.r * 2, h: a.r * 2 };
     case 'text': { const m = textMetrics(a); return { x: a.x, y: a.y, w: m.w, h: m.h }; }
     default: return norm(a);
   }
 }
 export function handles(a) {
-  if (a.type === 'arrow') return [['p1', a.x1, a.y1], ['p2', a.x2, a.y2]];
+  if (SEGMENT_TYPES.has(a.type)) return [['p1', a.x1, a.y1], ['p2', a.x2, a.y2]];
   if (!BOX_TYPES.has(a.type)) return [];
   const b = norm(a);
   return [['nw', b.x, b.y], ['ne', b.x + b.w, b.y], ['se', b.x + b.w, b.y + b.h], ['sw', b.x, b.y + b.h]];
@@ -177,7 +186,7 @@ function distSeg(p, a) {
   return Math.hypot(p.x - (a.x1 + t * dx), p.y - (a.y1 + t * dy));
 }
 function hit(a, p) {
-  if (a.type === 'arrow') return distSeg(p, a) <= a.w * 1.6 + tol();
+  if (SEGMENT_TYPES.has(a.type)) return distSeg(p, a) <= a.w * 1.6 + tol();
   if (a.type === 'counter') return Math.hypot(p.x - a.x, p.y - a.y) <= a.r + tol() / 2;
   const b = bbox(a), t = tol() / 2;
   return p.x >= b.x - t && p.x <= b.x + b.w + t && p.y >= b.y - t && p.y <= b.y + b.h + t;
@@ -194,7 +203,7 @@ function drawHandle(c, x, y, r) {
 }
 
 function drawSelection(c, a, vs) {
-  if (a.type !== 'arrow') {
+  if (!SEGMENT_TYPES.has(a.type)) {
     const b = bbox(a), m = 4 / vs;
     c.setLineDash([4 / vs, 3 / vs]); c.lineWidth = 1 / vs; c.strokeStyle = '#0a84ff';
     c.strokeRect(b.x - m, b.y - m, b.w + m * 2, b.h + m * 2); c.setLineDash([]);

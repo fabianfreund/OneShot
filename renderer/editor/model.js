@@ -6,7 +6,7 @@
 
 export const TOOLS = [
   ['select', 'Select', 'v'], null,
-  ['arrow', 'Arrow', 'a'], ['rect', 'Rectangle', 'r'], ['ellipse', 'Ellipse', 'o'], ['text', 'Text', 't'],
+  ['arrow', 'Arrow', 'a'], ['line', 'Line', 'l'], ['rect', 'Rectangle', 'r'], ['ellipse', 'Ellipse', 'o'], ['text', 'Text', 't'],
   ['counter', 'Counter', 'n'], ['highlight', 'Highlighter', 'h'], ['blur', 'Pixelate', 'b'], null,
   ['crop', 'Crop', 'c'], ['perspective', 'Perspective Crop', 'p'],
 ];
@@ -26,6 +26,8 @@ export const BACKDROPS = [
 ];
 export const RATIOS = { auto: null, '1:1': 1, '4:3': 4 / 3, '16:9': 16 / 9 };
 export const BOX_TYPES = new Set(['rect', 'ellipse', 'blur', 'highlight']);
+// Two-point annotations: x1/y1 → x2/y2 with stroke width w.
+export const SEGMENT_TYPES = new Set(['arrow', 'line']);
 export const DEFAULT_BG = { enabled: false, preset: 'sunset', padding: 8, radius: 12, shadow: 45, ratio: 'auto' };
 
 // Box with positive width/height.
@@ -54,7 +56,7 @@ export function sizeFor(kind, size, W, H) {
 }
 
 export function moveAnn(a, dx, dy) {
-  if (a.type === 'arrow') { a.x1 += dx; a.x2 += dx; a.y1 += dy; a.y2 += dy; } else { a.x += dx; a.y += dy; }
+  if (SEGMENT_TYPES.has(a.type)) { a.x1 += dx; a.x2 += dx; a.y1 += dy; a.y2 += dy; } else { a.x += dx; a.y += dy; }
 }
 
 export const nextCounter = (anns) => Math.max(0, ...anns.filter((a) => a.type === 'counter').map((a) => a.n)) + 1;

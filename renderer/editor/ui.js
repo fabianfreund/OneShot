@@ -1,7 +1,7 @@
 // Dock, popovers and inspector: building the controls and keeping them in sync with state.
 import { $, $$ } from '../lib.js';
 import { clamp, hexA } from '../util.js';
-import { BACKDROPS, BOX_TYPES, COLORS, TOOLS } from './model.js';
+import { BACKDROPS, BOX_TYPES, COLORS, SEGMENT_TYPES, TOOLS } from './model.js';
 import { ICONS, svg } from './icons.js';
 import { S, history, sz } from './state.js';
 import { relayout, requestRender, setZoom, actualSize } from './view.js';
@@ -130,7 +130,7 @@ function setStyle(patch) {
   if (a) {
     if (patch.color && a.type !== 'blur') a.color = patch.color;
     if (patch.size != null) {
-      if (a.type === 'arrow') a.w = sz('stroke');
+      if (SEGMENT_TYPES.has(a.type)) a.w = sz('stroke');
       else if (BOX_TYPES.has(a.type)) a.sw = sz('stroke');
       else if (a.type === 'text') a.fs = sz('font');
       else if (a.type === 'counter') a.r = sz('counter');

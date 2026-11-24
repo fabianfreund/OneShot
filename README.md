@@ -14,7 +14,7 @@ Get the latest build from [Releases](https://github.com/fabianfreund/OneShot/rel
 ## Highlights
 - **Capture in one key:** area, window or full screen. A quick-access card slides in with Copy, Annotate, Pin, Save and drag-out.
 - **Your kind of preview:** pick the corner and size of the card, and copy every capture to the clipboard automatically.
-- **Annotate with good defaults:** tapered arrows, boxes, ellipses, text (plain, outline, pill), numbered counters, highlighter, pixelate.
+- **Annotate with good defaults:** tapered arrows, lines, boxes, ellipses, text (plain, outline, pill), numbered counters, highlighter, pixelate.
 - **Beautify:** gradient backgrounds with padding, rounded corners, shadow and fixed aspect ratios.
 - **Photo tools too:** crop, perspective crop (straighten a photographed document), rotate and flip.
 - **Pin to screen:** keep a capture floating on top as a reference.
@@ -26,7 +26,7 @@ Get the latest build from [Releases](https://github.com/fabianfreund/OneShot/rel
 |---|---|
 | ⌥⇧4 / ⌥⇧5 / ⌥⇧3 | Capture area / window / screen |
 | Viewer | ← → browse · pinch or ⌘± zoom · ⌘0 fit · ⌘1 actual size · **E** or double-click to edit |
-| Tools | V select · A arrow · R rect · O ellipse · T text · N counter · H highlight · B pixelate · C crop · P perspective |
+| Tools | V select · A arrow · L line · R rect · O ellipse · T text · N counter · H highlight · B pixelate · C crop · P perspective |
 | Editing | ⇧ constrain · ⌫ delete · arrows nudge · ↩ apply crop · esc back · ⌘Z / ⇧⌘Z · ⌘C copy · ⌘S save |
 
 On Windows and Linux use Ctrl for ⌘ and Alt for ⌥.

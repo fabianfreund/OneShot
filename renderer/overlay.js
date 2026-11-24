@@ -6,6 +6,7 @@ const card = $('#card');
 const thumb = $('#thumb');
 const LIFE = 10000;
 
+if (api.platform !== 'darwin') $('#copy').title = 'Copy  Ctrl+C';
 if (api.platform === 'win32') $('#reveal').title = 'Show in Explorer';
 else if (api.platform !== 'darwin') $('#reveal').title = 'Show in Folder';
 card.style.setProperty('--life', `${LIFE}ms`);
