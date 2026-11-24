@@ -1,7 +1,7 @@
 {
   "name": "oneshot",
   "productName": "OneShot",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "A simple-on-the-surface, deep-underneath screenshot tool and image viewer.",
   "main": "main.js",
   "private": true,
